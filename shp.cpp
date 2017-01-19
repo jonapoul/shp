@@ -34,6 +34,8 @@ int main(int argc, char* argv[]) {
 	
 }
 
+// carry on with reading an ephemeris line from the mars file
+// also find a good timespace between records, is 4h too much? Jumps by ~2arcmin per record for DEC
 // carry on with Vector and Particle
 // check for the word "TEST", so the plate can be discarded. It comes up a lot in the last catalog file
 // test gnomonic projection, how fast/efficient is it?
