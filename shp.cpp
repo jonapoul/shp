@@ -1,6 +1,5 @@
 #include "headers/Plate.h"
 #include "headers/Particle.h"
-#include "headers/Vector.h"
 #include <fstream>
 #include <vector>
 using std::cout;
@@ -21,6 +20,9 @@ int main(int argc, char* argv[]) {
 		}
 		file.close();
 	}
+
+	Particle p{"Earth", {}, {}, 1.f, 6371e3};
+	cout << p.toString() << '\n';
 
 	// for (auto p : plates) {
 	// 	///////////////////////////////////////////////////////////////

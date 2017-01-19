@@ -3,15 +3,17 @@
 
 #include <iostream>
 #include <string>
+#include <sstream>
 #include "Vector.h"
+using std::cout;
 
 class Particle {
 private:
 	std::string name;
 	Vector m_pos;	// units of AU			 = 1.496e11m
 	Vector m_vel;	// units of AU/year		 = 4740.57m/s
-	double mass;		// units of Earth masses = 5.97e24kg
-	float radius;		// units of m
+	double mass;	// units of Earth masses = 5.97e24kg
+	float radius;	// units of m
 
 public:
 	Particle(std::string n="", Vector pos={}, Vector vel={}, double m=0.f, float r=0.f);
@@ -21,6 +23,7 @@ public:
 	Vector getV();
 	double getMass();
 	float getRadius();
+	std::string toString();
 
 };
 
@@ -33,5 +36,11 @@ Vector Particle::getR() { return m_pos; }
 Vector Particle::getV() { return m_vel; }
 double Particle::getMass() { return mass; }
 float Particle::getRadius() { return radius; }
+
+std::string Particle::toString() {
+	std::stringstream ss;
+	ss << '[' << name << ", " << m_pos.toString() << ", " << m_vel.toString() << ']';
+	return ss.str();
+}
 
 #endif
