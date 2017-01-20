@@ -16,10 +16,15 @@ public:
 	int m_hour;
 	int m_mins;
 	float m_secs;
+	double m_degrees;
+	double m_radians;
 
-	RA(int h = 0, int m = 0, float s = 0.f);
+	RA(int h = 0, int m = 0, float s = 0.f, double deg = 0.f, double rad = 0.f);
 	RA(const RA& ra);
 	RA(float decimal);
+	int getHour();
+	int getMins();
+	float getSecs();
 	std::string toString();
 	void fixRA();
 	float toDecimal();
@@ -31,15 +36,28 @@ public:
 	friend RA operator- (RA& a, RA& b);
 };
 
-RA::RA(int h, int m, float s) : m_hour(h), m_mins(m), m_secs(s){ 
-	fixRA(); 
+RA::RA(int h, int m, float s, double deg, double rad) 
+	: m_hour(h), m_mins(m), m_secs(s), m_degrees(deg), m_radians(rad) { 
+	if (abs(m_degrees - 0.f) < 1e-10) {
+		m_degrees = toDecimal();
+		m_radians = m_degrees * M_PI / 180.f;
+	}
 }
 
-RA::RA(const RA& ra) : m_hour(ra.m_hour), m_mins(ra.m_mins), m_secs(ra.m_secs) { }
+RA::RA(const RA& ra) 
+	: m_hour(ra.m_hour), m_mins(ra.m_mins), m_secs(ra.m_secs), m_degrees(ra.m_degrees), m_radians(ra.m_radians) {
+	if (abs(m_degrees - 0.f) < 1e-10) {
+		m_degrees = toDecimal();
+		m_radians = m_degrees * M_PI / 180.f;
+	}
+}
 
 RA::RA(float decimal) {
 	while (decimal < 0.f) 
 		decimal += 360.f;
+
+	m_degrees = decimal;
+	m_radians = decimal * M_PI / 180.f;
 
 	float hourDecimal = decimal * 24.f/360.f;
 	m_hour = int(hourDecimal);

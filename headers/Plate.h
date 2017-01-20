@@ -14,7 +14,7 @@ public:
 	Plate(int num = 0, const Coords& c = {});
 	Plate(const Plate& p);
 	Plate(int num, const RA& ra, const DEC& dec);
-	void parsePlateData(std::string buffer);
+	bool parsePlateData(std::string buffer);
 };
 
 Plate::Plate(int num, const Coords& c) : m_number(num), m_coords(c) { }
@@ -23,15 +23,15 @@ Plate::Plate(const Plate& p) : m_number(p.m_number), m_coords(p.m_coords) { }
 
 Plate::Plate(int num, const RA& ra, const DEC& dec) : m_number(num), m_coords({ra},{dec}) { }
 
-void Plate::parsePlateData(std::string buffer) {
+bool Plate::parsePlateData(std::string buffer) {
+	m_lst  = buffer.substr(36, 4);
+	if (m_lst == "   0") return false;
 	m_coords.m_ra.parseFromString(buffer);
 	m_coords.m_dec.parseFromString(buffer);
-
 	m_number = stoi(buffer.substr(2, 5));
 	m_date = buffer.substr(30, 6);
-	m_lst  = buffer.substr(36, 4);
-	if (m_lst == "   0") m_lst = "0000";
-	//cout << m_date << ' ' << m_lst << '\t';
+	cout << m_date << ' ' << m_lst << '\n';
+	return true;
 }
 
 #endif
