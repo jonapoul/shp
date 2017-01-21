@@ -12,44 +12,50 @@ using std::cout;
 class DEC;
 
 class RA {
-public:
+private:
 	int m_hour;
 	int m_mins;
 	float m_secs;
 	double m_degrees;
 	double m_radians;
 
-	RA(int h = 0, int m = 0, float s = 0.f, double deg = 0.f, double rad = 0.f);
+public:
+	RA(int h = 0, int m = 0, float s = 0.f);
 	RA(const RA& ra);
 	RA(float decimal);
-	int getHour();
-	int getMins();
-	float getSecs();
-	std::string toString();
-	void fixRA();
-	float toDecimal();
-	float toRadians();
-	void parseFromString(std::string s);
 
-	friend std::ostream& operator<<(std::ostream& os, RA& ra);
-	friend RA operator+ (RA& a, RA& b);
-	friend RA operator- (RA& a, RA& b);
+	int getHours() const;
+	int getMins() const;
+	float getSecs() const;
+	double getDegrees() const;
+	double getRadians() const;
+
+	void setHours(const int h);
+	void setMins(const int m);
+	void setSecs(const float s);
+	void setDegrees(const double d);
+	void setRadians(const double r);
+
+	std::string toString() const;
+	void fixRA();
+	float toDecimal() const;
+	float toRadians() const;
+
+	friend std::ostream& operator<<(std::ostream& os, const RA& ra);
+	friend RA operator+ (const RA& a, const RA& b);
+	friend RA operator- (const RA& a, const RA& b);
 };
 
-RA::RA(int h, int m, float s, double deg, double rad) 
-	: m_hour(h), m_mins(m), m_secs(s), m_degrees(deg), m_radians(rad) { 
-	if (abs(m_degrees - 0.f) < 1e-10) {
-		m_degrees = toDecimal();
-		m_radians = m_degrees * M_PI / 180.f;
-	}
+RA::RA(int h, int m, float s) 
+	: m_hour(h), m_mins(m), m_secs(s) { 
+	m_degrees = toDecimal();
+	m_radians = m_degrees * M_PI / 180.f;
 }
 
 RA::RA(const RA& ra) 
 	: m_hour(ra.m_hour), m_mins(ra.m_mins), m_secs(ra.m_secs), m_degrees(ra.m_degrees), m_radians(ra.m_radians) {
-	if (abs(m_degrees - 0.f) < 1e-10) {
-		m_degrees = toDecimal();
-		m_radians = m_degrees * M_PI / 180.f;
-	}
+	m_degrees = toDecimal();
+	m_radians = m_degrees * M_PI / 180.f;
 }
 
 RA::RA(float decimal) {
@@ -67,7 +73,19 @@ RA::RA(float decimal) {
 	m_secs = hourDecimal;
 }
 
-std::string RA::toString() {
+int RA::getHours() const { return m_hour; }
+int RA::getMins()const { return m_mins; }
+float RA::getSecs() const { return m_secs; }
+double RA::getDegrees() const { return m_degrees; }
+double RA::getRadians() const { return m_radians; }
+
+void RA::setHours(const int h) { m_hour = h; }
+void RA::setMins(const int m) { m_mins = m; }
+void RA::setSecs(const float s) { m_secs = s; }
+void RA::setDegrees(const double d) { m_degrees = d; }
+void RA::setRadians(const double r) { m_radians = r; }
+
+std::string RA::toString() const {
 	std::stringstream ss;
 	ss << std::fixed << std::setprecision(2);
 	if (m_hour < 10)	ss << '0';
@@ -75,7 +93,7 @@ std::string RA::toString() {
 	if (m_mins < 10)	ss << '0';
 	ss << m_mins << 'm';
 	if (m_secs < 10) 	ss << '0';
-	ss << m_secs << 's';
+	ss << int(m_secs) << 's';
 	return ss.str();
 }
 
@@ -88,38 +106,27 @@ void RA::fixRA() {
 	while (m_hour > 24)		{ m_hour -= 24; }
 }
 
-float RA::toDecimal() {
+float RA::toDecimal() const {
 	return m_hour*(360/24) + m_mins*0.25 + m_secs*(1.f/240.f);
 }
 
-float RA::toRadians() {
+float RA::toRadians() const {
 	float pi = 3.1415926535;
 	return toDecimal() * (pi/180.f);
 }
 
-void RA::parseFromString(std::string s) {
-	if (s.length() < 31) {
-		cout << "string passed to RA::parseFromString() is too short\n";
-		return;
-	}
-
-	m_hour = stoi(s.substr(20,2));
-	m_mins = stoi(s.substr(22,2));
-	m_secs = stoi(s.substr(24,1)) * 6.f;
-}
-
-std::ostream& operator<<(std::ostream& os, RA& ra) {
+std::ostream& operator<<(std::ostream& os, const RA& ra) {
 	os << ra.toString();
     return os;
 }
 
-RA operator+(RA& a, RA& b) {
+RA operator+(const RA& a, const RA& b) {
 	RA output(a.m_hour+b.m_hour, a.m_mins+b.m_mins, a.m_secs+b.m_secs); 
 	output.fixRA();
 	return output;
 }
 
-RA operator-(RA& a, RA& b) {
+RA operator-(const RA& a, const RA& b) {
 	RA output(a.m_hour-b.m_hour, a.m_mins-b.m_mins, a.m_secs-b.m_secs); 
 	output.fixRA();
 	return output;
