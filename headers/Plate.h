@@ -1,6 +1,8 @@
 #ifndef PLATE_H
 #define PLATE_H
 
+#include <vector>
+#include <fstream>
 #include "Coords.h"
 using std::cout;
 
@@ -33,6 +35,7 @@ public:
 
 	bool parsePlateString(const std::string& buffer);
 	void printPlate() const;
+	static void readPlateCatalog(std::vector<Plate>& plates, const std::string& filename);
 };
 
 Plate::Plate(const int num, const Coords& c, const std::string& d, const std::string& lst, char grade) 
@@ -40,7 +43,7 @@ Plate::Plate(const int num, const Coords& c, const std::string& d, const std::st
 Plate::Plate(const Plate& p) 
 	: m_id(p.m_id), m_coords(p.m_coords), m_date(p.m_date), m_lst(p.m_lst), m_grade(p.m_grade) { }
 Plate::Plate(const std::string& buffer) {
-	
+
 }
 
 int Plate::getID() const { return m_id; }
@@ -58,7 +61,9 @@ void Plate::setGrade(const char grade) { m_grade = grade; }
 bool Plate::parsePlateString(const std::string& buffer) {
 	// plate suffix column
 	// if this isn't blank it indicates shenanigans while recording the image, such as a tracking shot or multiple images
-	if (buffer[7] != ' ') return false;
+	// T = tracked shot, M = multiple shots, P = full-aperture prism
+	if (buffer[7]=='T' || buffer[7]=='M' || buffer[7]=='P') 
+		return false;
 	// checking for the word "TEST", s we can throw it out
 	if (buffer.substr(16,4) == "TEST" || buffer.substr(15,4) == "TEST")
 		return false;
@@ -82,6 +87,22 @@ bool Plate::parsePlateString(const std::string& buffer) {
 void Plate::printPlate() const {
 	printf("ID = %8d RA = %s DEC = %s ", m_id, m_coords.getRA().toString().c_str(), m_coords.getDEC().toString().c_str());
 	printf("Date = %s LST = %s Quality = %c\n", m_date.c_str(), m_lst.c_str(), m_grade);
+}
+
+void Plate::readPlateCatalog(std::vector<Plate>& plates, const std::string& filename) {
+	std::ifstream platesFile(filename);
+	if (platesFile.is_open()) {
+		while (!platesFile.eof()) {
+			std::string buffer;
+			getline(platesFile, buffer);
+			if (buffer.length() > 0) {
+				Plate p;
+				if (p.parsePlateString(buffer)) 
+					plates.push_back(p);
+			}
+		}
+		platesFile.close();
+	};
 }
 
 #endif

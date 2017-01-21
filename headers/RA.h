@@ -22,7 +22,7 @@ private:
 public:
 	RA(int h = 0, int m = 0, float s = 0.f);
 	RA(const RA& ra);
-	RA(float decimal);
+	RA(double decimal);
 
 	int getHours() const;
 	int getMins() const;
@@ -58,7 +58,7 @@ RA::RA(const RA& ra)
 	m_radians = m_degrees * M_PI / 180.f;
 }
 
-RA::RA(float decimal) {
+RA::RA(double decimal) {
 	while (decimal < 0.f) 
 		decimal += 360.f;
 

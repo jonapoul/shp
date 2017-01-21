@@ -22,7 +22,7 @@ private:
 public:
 	DEC(bool isPos = true, int d = 0, int m = 0, float s = 0.f);
 	DEC(const DEC& dec);
-	DEC(float decimal);
+	DEC(double decimal);
 
 	bool isPositive() const;
 	int getDeg() const;
@@ -65,7 +65,7 @@ DEC::DEC(const DEC& dec)
 	m_radians = m_degrees * M_PI / 180.f;
 }
 
-DEC::DEC(float decimal) {
+DEC::DEC(double decimal) {
 	while (decimal < -360.f) decimal += 360.f;
 	while (decimal > 360.f) decimal -= 360.f;
 
