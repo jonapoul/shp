@@ -19,7 +19,6 @@ private:
 public:
 	Ephemeris(float day=0.f, Coords c={}, double lst=0.f, float mag=0.f, double dra=0.f, double ddec=0.f);
 	Ephemeris(const Ephemeris& e);
-	Ephemeris(const std::string& buffer);
 
 	float getJulianDay() const;
 	Coords getCoords() const;
@@ -45,12 +44,11 @@ public:
 };
 
 Ephemeris::Ephemeris(float day, Coords c, double lst, float mag, double dra, double ddec)
-	: m_day(day), m_coords(c), m_lst(lst), m_mag(mag), m_dRA(dra), m_dDEC(ddec) { }
+	: m_day(day), m_coords(c), m_lst(lst), 
+	  m_mag(mag), m_dRA(dra), m_dDEC(ddec) { }
 Ephemeris::Ephemeris(const Ephemeris& e)
-	: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), m_mag(e.m_mag), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
-Ephemeris::Ephemeris(const std::string& buffer) {
-
-}
+	: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), 
+	  m_mag(e.m_mag), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
 
 float Ephemeris::getJulianDay() const { return m_day; }
 Coords Ephemeris::getCoords() const { return m_coords; }

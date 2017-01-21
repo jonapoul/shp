@@ -5,60 +5,59 @@
 #include <fstream>
 #include "Coords.h"
 using std::cout;
-
-#define LIMITING_MAGNITUDE 23.0
+using std::vector;
+using std::string;
 
 class Plate {
 private:
-	int m_id;			// plate identification number
-	Coords m_coords;	// combines RA and DEC to one object
-	std::string m_date;	// Date of the plate being recorded, format = yymmdd
-	std::string m_lst;	// LST at the start of the exposure, format = hhmm
-	char m_grade;		// graded plate quality, A being best and C being 
+	int m_id;				// plate identification number
+	Coords m_coords;		// combines RA and DEC to one object
+	std::string m_dateStr;	// Date of the plate being recorded, format = yymmdd
+	float m_julianDate;		// julian date at the start of exposure
+	std::string m_lst;		// LST at the start of the exposure, format = hhmm
+	char m_grade;			// graded plate quality, A being best and C being 
 
 public:
-	Plate(int num = 0, const Coords& c = {}, const std::string& d = "", const std::string& lst = "", char grade = ' ');
+	Plate(int num=0, const Coords& c={}, const string& d="", const float jd=0.f, const string& lst="", char grade=' ');
 	Plate(const Plate& p);
-	Plate(const std::string& buffer);
 
 	int getID() const;
 	Coords getCoords() const;
-	std::string getDate() const;
-	std::string getLST() const;
+	string getDate() const;
+	string getLST() const;
 	char getGrade() const;
 
 	void setID(const int id);
 	void setCoords(const Coords& c);
-	void setDate(const std::string& d);
-	void setLST(const std::string& lst);
+	void setDate(const string& d);
+	void setLST(const string& lst);
 	void setGrade(const char grade);
 
-	bool parsePlateString(const std::string& buffer);
+	bool parsePlateString(const string& buffer);
 	void printPlate() const;
-	static void readPlateCatalog(std::vector<Plate>& plates, const std::string& filename);
+	static void readPlateCatalog(vector<Plate>& plates, const string& filename);
 };
 
-Plate::Plate(const int num, const Coords& c, const std::string& d, const std::string& lst, char grade) 
-	: m_id(num), m_coords(c), m_date(d), m_lst(lst), m_grade(grade) { }
+Plate::Plate(const int num, const Coords& c, const string& d, const float jd, const string& lst, char grade) 
+	: m_id(num), m_coords(c), m_dateStr(d), 
+	  m_julianDate(jd), m_lst(lst), m_grade(grade) { }
 Plate::Plate(const Plate& p) 
-	: m_id(p.m_id), m_coords(p.m_coords), m_date(p.m_date), m_lst(p.m_lst), m_grade(p.m_grade) { }
-Plate::Plate(const std::string& buffer) {
-
-}
+	: m_id(p.m_id), m_coords(p.m_coords), m_dateStr(p.m_dateStr), 
+	  m_julianDate(p.m_julianDate), m_lst(p.m_lst), m_grade(p.m_grade) { }
 
 int Plate::getID() const { return m_id; }
 Coords Plate::getCoords() const { return m_coords; }
-std::string Plate::getDate() const { return m_date; }
-std::string Plate::getLST() const { return m_lst; }
+string Plate::getDate() const { return m_dateStr; }
+string Plate::getLST() const { return m_lst; }
 char Plate::getGrade() const { return m_grade; }
 
 void Plate::setID(const int id) { m_id = id; }
 void Plate::setCoords(const Coords& c) { m_coords = c; }
-void Plate::setDate(const std::string& d) { m_date = d; }
-void Plate::setLST(const std::string& lst) { m_lst = lst; }
+void Plate::setDate(const string& d) { m_dateStr = d; }
+void Plate::setLST(const string& lst) { m_lst = lst; }
 void Plate::setGrade(const char grade) { m_grade = grade; }
 
-bool Plate::parsePlateString(const std::string& buffer) {
+bool Plate::parsePlateString(const string& buffer) {
 	// plate suffix column
 	// if this isn't blank it indicates shenanigans while recording the image, such as a tracking shot or multiple images
 	// T = tracked shot, M = multiple shots, P = full-aperture prism
@@ -72,7 +71,7 @@ bool Plate::parsePlateString(const std::string& buffer) {
 	// reading the RA/DEC coordinates in sexagesimal format
 	m_coords.parseFromPlateRecord(buffer);
 	// gregorian date string recorded as "yymmdd"
-	m_date = buffer.substr(30, 6);
+	m_dateStr = buffer.substr(30, 6);
 	// Local sidereal time when the plate was recorded
 	m_lst = buffer.substr(36, 4);
 	// invalid recorded LST => useless plate
@@ -86,14 +85,14 @@ bool Plate::parsePlateString(const std::string& buffer) {
 
 void Plate::printPlate() const {
 	printf("ID = %8d RA = %s DEC = %s ", m_id, m_coords.getRA().toString().c_str(), m_coords.getDEC().toString().c_str());
-	printf("Date = %s LST = %s Quality = %c\n", m_date.c_str(), m_lst.c_str(), m_grade);
+	printf("Date = %s LST = %s Quality = %c\n", m_dateStr.c_str(), m_lst.c_str(), m_grade);
 }
 
-void Plate::readPlateCatalog(std::vector<Plate>& plates, const std::string& filename) {
+void Plate::readPlateCatalog(vector<Plate>& plates, const string& filename) {
 	std::ifstream platesFile(filename);
 	if (platesFile.is_open()) {
 		while (!platesFile.eof()) {
-			std::string buffer;
+			string buffer;
 			getline(platesFile, buffer);
 			if (buffer.length() > 0) {
 				Plate p;
