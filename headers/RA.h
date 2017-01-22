@@ -7,7 +7,7 @@
 #include <iomanip>
 #include <math.h>
 #include "DEC.h"
-using std::cout;
+using namespace std;
 
 class DEC;
 
@@ -36,12 +36,12 @@ public:
 	void setDegrees(const double d);
 	void setRadians(const double r);
 
-	std::string toString() const;
+	string toString() const;
 	void fixRA();
 	float toDecimal() const;
 	float toRadians() const;
 
-	friend std::ostream& operator<<(std::ostream& os, const RA& ra);
+	friend ostream& operator<<(ostream& os, const RA& ra);
 	friend RA operator+(const RA& a, const RA& b);
 	friend RA operator-(const RA& a, const RA& b);
 	friend bool operator==(const RA& a, const RA& b);
@@ -92,9 +92,9 @@ void RA::setSecs(const float s) { m_secs = s; }
 void RA::setDegrees(const double d) { m_degrees = d; }
 void RA::setRadians(const double r) { m_radians = r; }
 
-std::string RA::toString() const {
-	std::stringstream ss;
-	ss << std::fixed << std::setprecision(2);
+string RA::toString() const {
+	stringstream ss;
+	ss << fixed << setprecision(2);
 	if (m_hour < 10)	ss << '0';
 	ss << m_hour << 'h';
 	if (m_mins < 10)	ss << '0';
@@ -124,7 +124,7 @@ float RA::toRadians() const {
 
 
 
-std::ostream& operator<<(std::ostream& os, const RA& ra) {
+ostream& operator<<(ostream& os, const RA& ra) {
 	os << ra.toString();
     return os;
 }

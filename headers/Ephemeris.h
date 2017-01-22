@@ -7,6 +7,8 @@
 #include <fstream>
 #include "Coords.h"
 
+using namespace std;
+
 class Ephemeris {
 private:
 	float m_day;		// time in Julian days
@@ -38,8 +40,8 @@ public:
 	void setErrorRA(const double dra);
 	void setErrorDEC(const double ddec);
 
-	bool parseEphemerisString(const std::string& s);
-	static void readEphemerisFile(std::vector<Ephemeris>& eph, const std::string& filename);
+	bool parseEphemerisString(const string& s);
+	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename);
 	void printEphemeris() const;
 };
 
@@ -68,11 +70,11 @@ void Ephemeris::setApMag(const float mag) { m_mag = mag; }
 void Ephemeris::setErrorRA(const double dra) { m_dRA = dra; }
 void Ephemeris::setErrorDEC(const double ddec) { m_dDEC = ddec; }
 
-bool Ephemeris::parseEphemerisString(const std::string& s) {
+bool Ephemeris::parseEphemerisString(const string& s) {
 	if (s.length() == 0) return false;
 
-	std::stringstream ss(s);
-	std::string temp, dRA_str, dDEC_str;
+	stringstream ss(s);
+	string temp, dRA_str, dDEC_str;
 	double ra, dec;
 
 	// the two "temp" insertions represent irrelevant info
@@ -84,17 +86,17 @@ bool Ephemeris::parseEphemerisString(const std::string& s) {
 	m_coords = { {ra}, {dec} };
 
 	// checking whether the errors in RA/DEC are valid
-	m_dRA  = (dRA_str  == "n.a.") ? 0.f : std::stod(dRA_str);
-	m_dDEC = (dDEC_str == "n.a.") ? 0.f : std::stod(dDEC_str);
+	m_dRA  = (dRA_str  == "n.a.") ? 0.f : stod(dRA_str);
+	m_dDEC = (dDEC_str == "n.a.") ? 0.f : stod(dDEC_str);
 	return true;
 }
 
-void Ephemeris::readEphemerisFile(std::vector<Ephemeris>& eph, const std::string& filename) {
-	std::ifstream ephemerisFile("mars.txt");
+void Ephemeris::readEphemerisFile(vector<Ephemeris>& eph, const string& filename) {
+	ifstream ephemerisFile("mars.txt");
 	if (ephemerisFile.is_open()) {
 		bool canReadEntries = false;
 		while (!ephemerisFile.eof()) {
-			std::string buffer;
+			string buffer;
 			getline(ephemerisFile, buffer);
 			if (buffer == "$$EOE") canReadEntries = false;
 			if (canReadEntries) {

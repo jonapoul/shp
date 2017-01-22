@@ -5,9 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include "Coords.h"
-using std::cout;
-using std::vector;
-using std::string;
+using namespace std;
 
 class Plate {
 private:
@@ -80,7 +78,7 @@ bool Plate::parsePlateString(const string& buffer) {
 		return false;
 	// checking for an invalid LST string (if any of the 4 digits are blank)
 	m_lst = buffer.substr(36, 4);
-	if (std::stoi(m_lst) < 1000) 
+	if (stoi(m_lst) < 1000) 
 		return false;
 	// plate number, for later reference
 	m_id = stoi(buffer.substr(2, 5));
@@ -100,10 +98,10 @@ void Plate::printPlate() const {
 }
 
 float Plate::gregorianToJulian(const string& gregorian) {
-	int date = std::stoi(gregorian);
-	int y = std::stoi(gregorian.substr(0, 2));
-	int m = std::stoi(gregorian.substr(2, 2));
-	int d = std::stoi(gregorian.substr(4));
+	int date = stoi(gregorian);
+	int y = stoi(gregorian.substr(0, 2));
+	int m = stoi(gregorian.substr(2, 2));
+	int d = stoi(gregorian.substr(4));
 
 	y += (y < 17) ? 2000 : 1900;
 	if (m < 3) { y--; m += 12; }
@@ -138,7 +136,7 @@ string Plate::julianToGregorian(float julian) {
 
 	// DO SOMETHING TO GET LST OUT HERE
 
-	std::stringstream ss;
+	stringstream ss;
 	y -= ((y < 16) ? 1900 : 2000);
 	ss << ((y < 10) ? "0" : "");
 	ss << y;
@@ -150,7 +148,7 @@ string Plate::julianToGregorian(float julian) {
 }
 
 void Plate::readPlateCatalog(vector<Plate>& plates, const string& filename) {
-	std::ifstream platesFile(filename);
+	ifstream platesFile(filename);
 	if (platesFile.is_open()) {
 		while (!platesFile.eof()) {
 			string buffer;
@@ -174,10 +172,10 @@ int Plate::partition(vector<Plate>& plates, const int p, const int q) {
 	for (int j = p+1; j < q; j++) {
 		if (plates[j].getDate() <= x.getDate()) {
 			i++;
-			std::swap(plates[i], plates[j]);
+			swap(plates[i], plates[j]);
 		}
 	}
-	std::swap(plates[i], plates[p]);
+	swap(plates[i], plates[p]);
 	return i;
 }
 

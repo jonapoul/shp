@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
-using std::cout;
+using namespace std;
 
 class RA;
 
@@ -38,12 +38,12 @@ public:
 	void setDegrees(const double d);
 	void setRadians(const double r);
 
-	std::string toString() const;
+	string toString() const;
 	void fixDEC();
 	float toDecimal() const;
 	float toRadians() const;
 
-	friend std::ostream& operator<<(std::ostream& os, const RA& ra);
+	friend ostream& operator<<(ostream& os, const RA& ra);
 	friend DEC operator+(const DEC& a, const DEC& b);
 	friend DEC operator-(const DEC& a, const DEC& b);
 	friend bool operator==(const DEC& a, const DEC& b);
@@ -106,9 +106,9 @@ void DEC::setSecs(const float s) { m_sec = s; }
 void DEC::setDegrees(const double d) { m_degrees = d; }
 void DEC::setRadians(const double r) { m_radians = r; };
 
-std::string DEC::toString() const {
-	std::stringstream ss;
-	ss << std::fixed << std::setprecision(2);
+string DEC::toString() const {
+	stringstream ss;
+	ss << fixed << setprecision(2);
 	if (m_isPositive)
 		ss << '+';
 	else 
@@ -145,7 +145,7 @@ float DEC::toRadians() const {
 
 
 
-std::ostream& operator<<(std::ostream& os, const DEC& dec) {
+ostream& operator<<(ostream& os, const DEC& dec) {
 	os << dec.toString();
     return os;
 }

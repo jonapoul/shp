@@ -6,7 +6,7 @@
 #include <math.h>
 #include "RA.h"
 #include "DEC.h"
-using std::cout;
+using namespace std;
 
 class Coords {
 private:
@@ -23,10 +23,10 @@ public:
 	void setRA(const RA& r);
 	void setDEC(const DEC& d);
 
-	void parseFromPlateRecord(const std::string& record);
+	void parseFromPlateRecord(const string& record);
 	static float angularDistance(const Coords& a, const Coords& b, const bool returnValueInDegrees = true);
 
-	friend std::ostream& operator<<(std::ostream& os, const Coords& c);
+	friend ostream& operator<<(ostream& os, const Coords& c);
 	friend Coords operator+ (const Coords& a, const Coords& b);
 	friend Coords operator- (const Coords& a, const Coords& b);
 };
@@ -42,9 +42,9 @@ DEC Coords::getDEC() const { return m_dec; }
 void Coords::setRA(const RA& r) { m_ra = r; }
 void Coords::setDEC(const DEC &d) { m_dec = d; }
 
-void Coords::parseFromPlateRecord(const std::string& record) {
+void Coords::parseFromPlateRecord(const string& record) {
 	if (record.length() < 31) {
-		std::cerr << "string passed to Coords::parseFromPlateRecord() is too short\n";
+		cerr << "string passed to Coords::parseFromPlateRecord() is too short\n";
 		return;
 	}
 	m_ra = {
@@ -71,7 +71,7 @@ float Coords::angularDistance(const Coords& a, const Coords& b, const bool retur
 	else						return acos(cosx);
 }
 
-std::ostream& operator<<(std::ostream& os, const Coords& c) {
+ostream& operator<<(ostream& os, const Coords& c) {
 	os << c.m_ra.toString() << ", " << c.m_dec.toString();
     return os;
 }

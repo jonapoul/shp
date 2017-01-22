@@ -2,28 +2,28 @@
 #include <chrono>
 #include "headers/Ephemeris.h"
 #include "headers/Plate.h"
-using std::cout;
+using namespace std;
 
 int main(int argc, char* argv[]) {	
-	std::chrono::time_point<std::chrono::system_clock> start = std::chrono::system_clock::now();	
+	chrono::time_point<chrono::system_clock> start = chrono::system_clock::now();
+	
 
 
-	std::vector<Plate> plates;
+	vector<Plate> plates;
 	Plate::readPlateCatalog(plates, "catlog_ukstu.txt");
-	std::vector<Ephemeris> ephemerides;
+	Plate::quickSort(plates, 0, (int)plates.size());
+	vector<Ephemeris> ephemerides;
 	Ephemeris::readEphemerisFile(ephemerides, "mars.txt");
 
-	Plate::quickSort(plates, 0, (int)plates.size());
 
-	for (auto p : plates)
-		p.printPlate();
 
-	std::chrono::duration<double> elapsed_seconds = std::chrono::system_clock::now() - start;
-	std::cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+	chrono::duration<double> elapsed_seconds = chrono::system_clock::now() - start;
+	cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
 }
 
-// calculate julian day using both date plus LST (on plates)
-	// bottom of page 9 in book
+// put partition and quicksort into ephemeris.h too
+	// also think about what i might actually sort by
+// Add LST conversion into BOTH the Julian/Gregorian converters
 // make ephemeris/plate constructors based on a string buffer
 	// have to check whether the buffer is valid first before sending it to the constructor
 // sort out projection for an image to coordinates
