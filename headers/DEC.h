@@ -20,7 +20,7 @@ private:
 	double m_radians;
 
 public:
-	DEC(bool isPos = true, int d = 0, int m = 0, float s = 0.f);
+	DEC(const bool isPos = true, const int d = 0, const int m = 0, const float s = 0.f);
 	DEC(const DEC& dec);
 	DEC(double decimal);
 
@@ -44,17 +44,23 @@ public:
 	float toRadians() const;
 
 	friend std::ostream& operator<<(std::ostream& os, const RA& ra);
-	friend DEC operator+ (const DEC& a, const DEC& b);
-	friend DEC operator- (const DEC& a, const DEC& b);
-
+	friend DEC operator+(const DEC& a, const DEC& b);
+	friend DEC operator-(const DEC& a, const DEC& b);
+	friend bool operator==(const DEC& a, const DEC& b);
+	friend bool operator!=(const DEC& a, const DEC& b);
+	friend bool operator<(const DEC& a, const DEC& b);
+	friend bool operator>(const DEC& a, const DEC& b);
+	friend bool operator<=(const DEC& a, const DEC& b);
+	friend bool operator>=(const DEC& a, const DEC& b);
 };
 
-DEC::DEC(bool isPos, int d, int m, float s) 
+DEC::DEC(const bool isPos, const int d, const int m, const float s) 
 	: m_isPositive(isPos), m_deg(d), m_min(m), m_sec(s) {
 	if (d < 0) {
 		m_isPositive = false;
 		m_deg *= -1;
 	}
+	fixDEC();
 	m_degrees = toDecimal();
 	m_radians = m_degrees * M_PI / 180.f;
 }
@@ -137,21 +143,27 @@ float DEC::toRadians() const {
 	return toDecimal() * (pi/180.f) * (m_isPositive ? 1 : -1);
 }
 
+
+
 std::ostream& operator<<(std::ostream& os, const DEC& dec) {
 	os << dec.toString();
     return os;
 }
-
 DEC operator+(const DEC& a, const DEC& b) {
 	DEC output(a.m_deg+b.m_deg, a.m_min+b.m_min, a.m_sec+b.m_sec); 
 	output.fixDEC();
 	return output;
 }
-
 DEC operator-(const DEC& a, const DEC& b) {
 	DEC output(a.m_deg-b.m_deg, a.m_min-b.m_min, a.m_sec-b.m_sec); 
 	output.fixDEC();
 	return output;
 }
+bool operator==(const DEC& a, const DEC& b) { return abs(a.m_degrees - b.m_degrees) < 1e-6; }
+bool operator!=(const DEC& a, const DEC& b) { return !(a == b); }
+bool operator<(const DEC& a, const DEC& b) { return (a.m_degrees < b.m_degrees); }
+bool operator>(const DEC& a, const DEC& b) { return (abs(a.m_degrees - b.m_degrees) < 1e-6) ? false : !(a < b); }
+bool operator<=(const DEC& a, const DEC& b) { return (a.m_degrees <= b.m_degrees); }
+bool operator>=(const DEC& a, const DEC& b) { return (abs(a.m_degrees - b.m_degrees) < 1e-6) ? false : !(a < b); }
 
 #endif

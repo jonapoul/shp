@@ -106,6 +106,9 @@ void Ephemeris::readEphemerisFile(std::vector<Ephemeris>& eph, const std::string
 		}
 		ephemerisFile.close();
 	}
+	else {
+		cout << "Ephemeris file \"" << filename << "\" is not valid\n";
+	}
 }
 
 void Ephemeris::printEphemeris() const {
