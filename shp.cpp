@@ -11,18 +11,18 @@ int main(int argc, char* argv[]) {
 
 	vector<Plate> plates;
 	Plate::readPlateCatalog(plates, "catlog_ukstu.txt");
+	for (auto p : plates)
+		p.printPlate();
 	vector<Ephemeris> ephemerides;
 	Ephemeris::readEphemerisFile(ephemerides, "mars.txt");
-	
 
 
 	chrono::duration<double> elapsed_seconds = chrono::system_clock::now() - start;
-	cout << "elapsed time: " << elapsed_seconds.count() << "s\n";
+	cout << "\nElapsed time: " << elapsed_seconds.count() << "s\n\n";
 }
 
 
-// sort out Plate::dayOfTheWeek()
-// carry on with Plate::gregorianToJulian()
+// carry on with Plate::convertDate()
 
 
 // make ephemeris/plate constructors based on a string buffer
