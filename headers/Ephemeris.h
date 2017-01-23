@@ -19,56 +19,34 @@ private:
 	double m_dDEC;		// 3sigma error in DEC in arcseconds
 
 public:
-	Ephemeris(float day=0.f, Coords c={}, double lst=0.f, float mag=0.f, double dra=0.f, double ddec=0.f);
-	Ephemeris(const Ephemeris& e);
+	Ephemeris(float day=0.f, Coords c={}, double lst=0.f, float mag=0.f, double dra=0.f, double ddec=0.f)
+		: m_day(day), m_coords(c), m_lst(lst), m_mag(mag), m_dRA(dra), m_dDEC(ddec) { }
+	Ephemeris(const Ephemeris& e)
+		: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), m_mag(e.m_mag), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
 
-	float getJulianDay() const;
-	Coords getCoords() const;
-	RA getRA() const;
-	DEC getDEC() const;
-	double getLST() const;
-	float getApMag() const;
-	double getErrorRA() const;
-	double getErrorDEC() const;
+	float 	getJulianDay() 	const { return m_day; };
+	Coords 	getCoords() 	const { return m_coords; };
+	RA 		getRA() 		const { return m_coords.getRA(); };
+	DEC 	getDEC() 		const { return m_coords.getDEC(); };
+	double 	getLST() 		const { return m_lst; };
+	float 	getApMag() 		const { return m_mag; };
+	double 	getErrorRA() 	const { return m_dRA; };
+	double 	getErrorDEC() 	const { return m_dDEC; };
 
-	void setJulianDay(const float d);
-	void setCoords(const Coords& c);
-	void setRA(const RA& r);
-	void setDEC(const DEC& d);
-	void setApLST(const double lst);
-	void setApMag(const float mag);
-	void setErrorRA(const double dra);
-	void setErrorDEC(const double ddec);
+	void setJulianDay(const float d) 	 { m_day = d; };
+	void setCoords   (const Coords& c) 	 { m_coords = c; };
+	void setRA       (const RA& r) 		 { m_coords.setRA(r); };
+	void setDEC      (const DEC& d) 	 { m_coords.setDEC(d); };
+	void setApLST    (const double lst)  { m_lst = lst; };
+	void setApMag    (const float mag) 	 { m_mag = mag; };
+	void setErrorRA  (const double dra)  { m_dRA = dra; };
+	void setErrorDEC (const double ddec) { m_dDEC = ddec; };
 
 	bool parseEphemerisString(const string& s);
-	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename);
 	void printEphemeris() const;
+	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename);
 };
 
-Ephemeris::Ephemeris(float day, Coords c, double lst, float mag, double dra, double ddec)
-	: m_day(day), m_coords(c), m_lst(lst), 
-	  m_mag(mag), m_dRA(dra), m_dDEC(ddec) { }
-Ephemeris::Ephemeris(const Ephemeris& e)
-	: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), 
-	  m_mag(e.m_mag), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
-
-float Ephemeris::getJulianDay() const { return m_day; }
-Coords Ephemeris::getCoords() const { return m_coords; }
-RA Ephemeris::getRA() const { return m_coords.getRA(); }
-DEC Ephemeris::getDEC() const { return m_coords.getDEC(); }
-double Ephemeris::getLST() const { return m_lst; }
-float Ephemeris::getApMag() const { return m_mag; }
-double Ephemeris::getErrorRA() const { return m_dRA; }
-double Ephemeris::getErrorDEC() const { return m_dDEC; }
-
-void Ephemeris::setJulianDay(const float d) { m_day = d; }
-void Ephemeris::setCoords(const Coords &c) { m_coords = c; }
-void Ephemeris::setRA(const RA &r) { m_coords.setRA(r); }
-void Ephemeris::setDEC(const DEC &d) { m_coords.setDEC(d); }
-void Ephemeris::setApLST(const double lst) { m_lst = lst; }
-void Ephemeris::setApMag(const float mag) { m_mag = mag; }
-void Ephemeris::setErrorRA(const double dra) { m_dRA = dra; }
-void Ephemeris::setErrorDEC(const double ddec) { m_dDEC = ddec; }
 
 bool Ephemeris::parseEphemerisString(const string& s) {
 	if (s.length() == 0) return false;
@@ -76,19 +54,20 @@ bool Ephemeris::parseEphemerisString(const string& s) {
 	stringstream ss(s);
 	string temp, dRA_str, dDEC_str;
 	double ra, dec;
-
-	// the two "temp" insertions represent irrelevant info
-	// first = whether it's daytime or not
-	// second = surface brightness
 	ss >> m_day >> temp >> ra >> dec >> m_lst >> m_mag >> temp >> dRA_str >> dDEC_str;
 
-	// converting the two double values (in degrees) to sexagesimal RA/DEC values
+	// converting the two double values (in degrees) to full RA/DEC objects
 	m_coords = { {ra}, {dec} };
 
 	// checking whether the errors in RA/DEC are valid
 	m_dRA  = (dRA_str  == "n.a.") ? 0.f : stod(dRA_str);
 	m_dDEC = (dDEC_str == "n.a.") ? 0.f : stod(dDEC_str);
 	return true;
+}
+
+void Ephemeris::printEphemeris() const {
+	printf("Day = %.1f RA = %.3f DEC = %.3f ", m_day, m_coords.getRA().getDegrees(), m_coords.getDEC().getDegrees());
+	printf("LST = %.2f ApMag = %.2f dRA = %.1f dDEC = %.1f\n", m_lst, m_mag, m_dRA, m_dDEC);
 }
 
 void Ephemeris::readEphemerisFile(vector<Ephemeris>& eph, const string& filename) {
@@ -111,11 +90,6 @@ void Ephemeris::readEphemerisFile(vector<Ephemeris>& eph, const string& filename
 	else {
 		cout << "Ephemeris file \"" << filename << "\" is not valid\n";
 	}
-}
-
-void Ephemeris::printEphemeris() const {
-	printf("Day = %.1f RA = %.3f DEC = %.3f ", m_day, m_coords.getRA().getDegrees(), m_coords.getDEC().getDegrees());
-	printf("LST = %.2f ApMag = %.2f dRA = %.1f dDEC = %.1f\n", m_lst, m_mag, m_dRA, m_dDEC);
 }
 
 #endif

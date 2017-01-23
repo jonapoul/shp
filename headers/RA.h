@@ -24,32 +24,32 @@ public:
 	RA(const RA& ra);
 	RA(const double decimal);
 
-	int getHours() const;
-	int getMins() const;
-	float getSecs() const;
-	double getDegrees() const;
-	double getRadians() const;
+	int    getHours() 	const { return m_hour; };
+	int    getMins() 	const { return m_mins; };
+	float  getSecs() 	const { return m_secs; };
+	double getDegrees() const { return m_degrees; };
+	double getRadians() const { return m_radians; };
 
-	void setHours(const int h);
-	void setMins(const int m);
-	void setSecs(const float s);
-	void setDegrees(const double d);
-	void setRadians(const double r);
+	void setHours  (const int h) 	{ m_hour = h; };
+	void setMins   (const int m)	{ m_mins = m; };
+	void setSecs   (const float s)	{ m_secs = s; };
+	void setDegrees(const double d)	{ m_degrees = d; };
+	void setRadians(const double r)	{ m_radians = r; };
 
-	string toString() const;
-	void fixRA();
-	float toDecimal() const;
-	float toRadians() const;
+	void   fixRA();
+	string toString()  const;
+	float  toDecimal() const;
+	float  toRadians() const;
 
 	friend ostream& operator<<(ostream& os, const RA& ra);
-	friend RA operator+(const RA& a, const RA& b);
-	friend RA operator-(const RA& a, const RA& b);
-	friend bool operator==(const RA& a, const RA& b);
-	friend bool operator!=(const RA& a, const RA& b);
-	friend bool operator<(const RA& a, const RA& b);
-	friend bool operator>(const RA& a, const RA& b);
-	friend bool operator<=(const RA& a, const RA& b);
-	friend bool operator>=(const RA& a, const RA& b);
+	friend RA 		operator+ (const RA& a, const RA& b);
+	friend RA 		operator- (const RA& a, const RA& b);
+	friend bool 	operator==(const RA& a, const RA& b);
+	friend bool 	operator!=(const RA& a, const RA& b);
+	friend bool 	operator< (const RA& a, const RA& b);
+	friend bool 	operator> (const RA& a, const RA& b);
+	friend bool 	operator<=(const RA& a, const RA& b);
+	friend bool 	operator>=(const RA& a, const RA& b);
 
 };
 
@@ -80,17 +80,14 @@ RA::RA(const double decimal) : m_degrees(decimal) {
 	m_secs = hourDecimal;
 }
 
-int RA::getHours() const { return m_hour; }
-int RA::getMins()const { return m_mins; }
-float RA::getSecs() const { return m_secs; }
-double RA::getDegrees() const { return m_degrees; }
-double RA::getRadians() const { return m_radians; }
-
-void RA::setHours(const int h) { m_hour = h; }
-void RA::setMins(const int m) { m_mins = m; }
-void RA::setSecs(const float s) { m_secs = s; }
-void RA::setDegrees(const double d) { m_degrees = d; }
-void RA::setRadians(const double r) { m_radians = r; }
+void RA::fixRA() {
+	while (m_secs < 0.f)	{ m_secs += 60.f; 	m_mins -= 1; }
+	while (m_secs > 60.f)	{ m_secs -= 60.f; 	m_mins += 1; }
+	while (m_mins < 0)		{ m_mins += 60; 	m_hour -= 1; }
+	while (m_mins > 60)		{ m_mins -= 60;	 	m_hour += 1; }
+	while (m_hour < 0)		{ m_hour += 24; }
+	while (m_hour > 24)		{ m_hour -= 24; }
+}
 
 string RA::toString() const {
 	stringstream ss;
@@ -104,15 +101,6 @@ string RA::toString() const {
 	return ss.str();
 }
 
-void RA::fixRA() {
-	while (m_secs < 0.f)	{ m_secs += 60.f; 	m_mins -= 1; }
-	while (m_secs > 60.f)	{ m_secs -= 60.f; 	m_mins += 1; }
-	while (m_mins < 0)		{ m_mins += 60; 	m_hour -= 1; }
-	while (m_mins > 60)		{ m_mins -= 60;	 	m_hour += 1; }
-	while (m_hour < 0)		{ m_hour += 24; }
-	while (m_hour > 24)		{ m_hour -= 24; }
-}
-
 float RA::toDecimal() const {
 	return m_hour*(360/24) + m_mins*0.25 + m_secs*(1.f/240.f);
 }
@@ -122,27 +110,45 @@ float RA::toRadians() const {
 	return toDecimal() * (pi/180.f);
 }
 
-
-
 ostream& operator<<(ostream& os, const RA& ra) {
 	os << ra.toString();
     return os;
 }
+
 RA operator+(const RA& a, const RA& b) {
 	RA output(a.m_hour+b.m_hour, a.m_mins+b.m_mins, a.m_secs+b.m_secs); 
 	output.fixRA();
 	return output;
 }
+
 RA operator-(const RA& a, const RA& b) {
 	RA output(a.m_hour-b.m_hour, a.m_mins-b.m_mins, a.m_secs-b.m_secs); 
 	output.fixRA();
 	return output;
 }
-bool operator==(const RA& a, const RA& b) { return abs(a.m_degrees - b.m_degrees) < 1e-6; }
-bool operator!=(const RA& a, const RA& b) { return !(a == b); }
-bool operator<(const RA& a, const RA& b) { return (a.m_degrees < b.m_degrees); }
-bool operator>(const RA& a, const RA& b) { return (abs(a.m_degrees - b.m_degrees) < 1e-6) ? false : !(a < b); }
-bool operator<=(const RA& a, const RA& b) { return (a.m_degrees <= b.m_degrees); }
-bool operator>=(const RA& a, const RA& b) { return (abs(a.m_degrees - b.m_degrees) < 1e-6) ? false : !(a < b); }
+
+bool operator==(const RA& a, const RA& b) { 
+	return abs(a.m_degrees - b.m_degrees) < 1e-6; 
+}
+
+bool operator!=(const RA& a, const RA& b) { 
+	return !(a == b); 
+}
+
+bool operator<(const RA& a, const RA& b) { 
+	return (a.m_degrees < b.m_degrees); 
+}
+
+bool operator>(const RA& a, const RA& b) { 
+	return (abs(a.m_degrees - b.m_degrees) < 1e-6) ? false : !(a < b); 
+}
+
+bool operator<=(const RA& a, const RA& b) { 
+	return (a.m_degrees <= b.m_degrees); 
+}
+
+bool operator>=(const RA& a, const RA& b) { 
+	return (abs(a.m_degrees - b.m_degrees) < 1e-6) ? false : !(a < b); 
+}
 
 #endif

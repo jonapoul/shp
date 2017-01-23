@@ -14,35 +14,26 @@ private:
 	DEC m_dec;
 
 public:
-	Coords(const RA& r = {}, const DEC& d = {});
-	Coords(const Coords& c);
+	Coords(const RA& r = {}, const DEC& d = {})
+		: m_ra(r), m_dec(d) { }
+	Coords(const Coords& c)
+		: m_ra(c.m_ra), m_dec(c.m_dec) { }
 
-	RA getRA() const;
-	DEC getDEC() const;
+	RA  getRA()  const { return m_ra; };
+	DEC getDEC() const { return m_dec; };
 
-	void setRA(const RA& r);
-	void setDEC(const DEC& d);
+	void setRA (const RA& r)  { m_ra = r; };
+	void setDEC(const DEC& d) { m_dec = d; };
 
-	void parseFromPlateRecord(const string& record);
+	void parseCoordsFromPlate(const string& record);
 	static float angularDistance(const Coords& a, const Coords& b, const bool returnValueInDegrees = true);
 
-	friend ostream& operator<<(ostream& os, const Coords& c);
-	friend Coords operator+ (const Coords& a, const Coords& b);
-	friend Coords operator- (const Coords& a, const Coords& b);
+	friend ostream& operator<<(ostream& os, 	const Coords& c);
+	friend Coords 	operator+ (const Coords& a, const Coords& b);
+	friend Coords 	operator- (const Coords& a, const Coords& b);
 };
 
-Coords::Coords(const RA& r, const DEC& d) 
-	: m_ra(r), m_dec(d) { }
-Coords::Coords(const Coords& c) 
-	: m_ra(c.m_ra), m_dec(c.m_dec) { }
-
-RA Coords::getRA() const { return m_ra; }
-DEC Coords::getDEC() const { return m_dec; }
-
-void Coords::setRA(const RA& r) { m_ra = r; }
-void Coords::setDEC(const DEC &d) { m_dec = d; }
-
-void Coords::parseFromPlateRecord(const string& record) {
+void Coords::parseCoordsFromPlate(const string& record) {
 	if (record.length() < 31) {
 		cerr << "string passed to Coords::parseFromPlateRecord() is too short\n";
 		return;

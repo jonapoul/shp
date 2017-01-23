@@ -24,34 +24,34 @@ public:
 	DEC(const DEC& dec);
 	DEC(double decimal);
 
-	bool isPositive() const;
-	int getDeg() const;
-	int getMins() const;
-	float getSecs() const;
-	double getDegrees() const;
-	double getRadians() const;
+	bool 	isPositive() const { return m_isPositive; };
+	int  	getDeg() 	 const { return m_deg; };
+	int  	getMins() 	 const { return m_min; };
+	float 	getSecs() 	 const { return m_sec; };
+	double 	getDegrees() const { return m_degrees; };
+	double 	getRadians() const { return m_radians; };
 	
-	void setIsPositive(const bool isPos);
-	void setDeg(const int d);
-	void setMins(const int m);
-	void setSecs(const float s);
-	void setDegrees(const double d);
-	void setRadians(const double r);
+	void setIsPositive(const bool isPos) { m_isPositive = isPos; };
+	void setDeg 	  (const int d) 	 { m_deg = d; };
+	void setMins	  (const int m) 	 { m_min = m; };
+	void setSecs	  (const float s) 	 { m_sec = s; };
+	void setDegrees   (const double d) 	 { m_degrees = d; };
+	void setRadians   (const double r) 	 { m_radians = r; };
 
-	string toString() const;
-	void fixDEC();
-	float toDecimal() const;
-	float toRadians() const;
+	void   fixDEC();
+	string toString()  const;
+	float  toDecimal() const;
+	float  toRadians() const;
 
-	friend ostream& operator<<(ostream& os, const RA& ra);
-	friend DEC operator+(const DEC& a, const DEC& b);
-	friend DEC operator-(const DEC& a, const DEC& b);
-	friend bool operator==(const DEC& a, const DEC& b);
-	friend bool operator!=(const DEC& a, const DEC& b);
-	friend bool operator<(const DEC& a, const DEC& b);
-	friend bool operator>(const DEC& a, const DEC& b);
-	friend bool operator<=(const DEC& a, const DEC& b);
-	friend bool operator>=(const DEC& a, const DEC& b);
+	friend ostream& operator<<(ostream& os,  const DEC& ra);
+	friend DEC 		operator+ (const DEC& a, const DEC& b);
+	friend DEC 		operator- (const DEC& a, const DEC& b);
+	friend bool 	operator==(const DEC& a, const DEC& b);
+	friend bool 	operator!=(const DEC& a, const DEC& b);
+	friend bool 	operator< (const DEC& a, const DEC& b);
+	friend bool 	operator> (const DEC& a, const DEC& b);
+	friend bool 	operator<=(const DEC& a, const DEC& b);
+	friend bool 	operator>=(const DEC& a, const DEC& b);
 };
 
 DEC::DEC(const bool isPos, const int d, const int m, const float s) 
@@ -92,19 +92,14 @@ DEC::DEC(double decimal) {
 	m_sec = decimal;
 }
 
-bool DEC::isPositive() const { return m_isPositive; }
-int DEC::getDeg() const { return m_deg; }
-int DEC::getMins() const { return m_min; }
-float DEC::getSecs() const { return m_sec; }
-double DEC::getDegrees() const { return m_degrees; }
-double DEC::getRadians() const { return m_radians; }
-
-void DEC::setIsPositive(const bool isPos) { m_isPositive = isPos; }
-void DEC::setDeg(const int d) { m_deg = d; }
-void DEC::setMins(const int m) { m_min = m; }
-void DEC::setSecs(const float s) { m_sec = s; }
-void DEC::setDegrees(const double d) { m_degrees = d; }
-void DEC::setRadians(const double r) { m_radians = r; };
+void DEC::fixDEC() {
+	while (m_sec < 0.f) 	{ m_sec += 60.f; 	m_min -= 1; }
+	while (m_sec > 60.f)	{ m_sec -= 60.f; 	m_min += 1; }
+	while (m_min < 0)		{ m_min += 60; 		m_deg -= 1; }
+	while (m_min > 60)		{ m_min -= 60; 		m_deg += 1; }
+	while (m_deg < -90) 	{ m_deg += 90; }
+	while (m_deg > 90)		{ m_deg -= 90; }
+}
 
 string DEC::toString() const {
 	stringstream ss;
@@ -125,15 +120,6 @@ string DEC::toString() const {
 	return ss.str();
 }
 
-void DEC::fixDEC() {
-	while (m_sec < 0.f) 	{ m_sec += 60.f; 	m_min -= 1; }
-	while (m_sec > 60.f)	{ m_sec -= 60.f; 	m_min += 1; }
-	while (m_min < 0)		{ m_min += 60; 		m_deg -= 1; }
-	while (m_min > 60)		{ m_min -= 60; 		m_deg += 1; }
-	while (m_deg < -90) 	{ m_deg += 90; }
-	while (m_deg > 90)		{ m_deg -= 90; }
-}
-
 float DEC::toDecimal() const {
 	return (m_isPositive ? 1 : -1) * (m_deg + m_min*(1.f/60.f) + m_sec*(1.f/3600.f));
 }
@@ -143,27 +129,45 @@ float DEC::toRadians() const {
 	return toDecimal() * (pi/180.f) * (m_isPositive ? 1 : -1);
 }
 
-
-
 ostream& operator<<(ostream& os, const DEC& dec) {
 	os << dec.toString();
     return os;
 }
+
 DEC operator+(const DEC& a, const DEC& b) {
 	DEC output(a.m_deg+b.m_deg, a.m_min+b.m_min, a.m_sec+b.m_sec); 
 	output.fixDEC();
 	return output;
 }
+
 DEC operator-(const DEC& a, const DEC& b) {
 	DEC output(a.m_deg-b.m_deg, a.m_min-b.m_min, a.m_sec-b.m_sec); 
 	output.fixDEC();
 	return output;
 }
-bool operator==(const DEC& a, const DEC& b) { return abs(a.m_degrees - b.m_degrees) < 1e-6; }
-bool operator!=(const DEC& a, const DEC& b) { return !(a == b); }
-bool operator<(const DEC& a, const DEC& b) { return (a.m_degrees < b.m_degrees); }
-bool operator>(const DEC& a, const DEC& b) { return (abs(a.m_degrees - b.m_degrees) < 1e-6) ? false : !(a < b); }
-bool operator<=(const DEC& a, const DEC& b) { return (a.m_degrees <= b.m_degrees); }
-bool operator>=(const DEC& a, const DEC& b) { return (abs(a.m_degrees - b.m_degrees) < 1e-6) ? false : !(a < b); }
+
+bool operator==(const DEC& a, const DEC& b) { 
+	return abs(a.m_degrees - b.m_degrees) < 1e-6;
+}
+
+bool operator!=(const DEC& a, const DEC& b) { 
+	return !(a == b); 
+}
+
+bool operator<(const DEC& a, const DEC& b) { 
+	return (a.m_degrees < b.m_degrees); 
+}
+
+bool operator>(const DEC& a, const DEC& b) { 
+	return (abs(a.m_degrees - b.m_degrees) < 1e-6) ? false : !(a < b); 
+}
+
+bool operator<=(const DEC& a, const DEC& b) { 
+	return (a.m_degrees <= b.m_degrees); 
+}
+
+bool operator>=(const DEC& a, const DEC& b) { 
+	return (abs(a.m_degrees - b.m_degrees) < 1e-6) ? false : !(a < b); 
+}
 
 #endif
