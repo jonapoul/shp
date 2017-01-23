@@ -22,9 +22,6 @@ int main(int argc, char* argv[]) {
 }
 
 
-// carry on with Plate::convertDate()
-
-
 // make ephemeris/plate constructors based on a string buffer
 	// have to check whether the buffer is valid first before sending it to the constructor
 // sort out projection for an image to coordinates
