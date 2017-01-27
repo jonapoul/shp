@@ -19,7 +19,7 @@ private:
 	double m_dDEC;		// 3sigma error in DEC in arcseconds
 
 public:
-	Ephemeris(float day=0.f, Coords c={}, double lst=0.f, float mag=0.f, double dra=0.f, double ddec=0.f)
+	Ephemeris(float day=0.0, Coords c={}, double lst=0.0, float mag=0.0, double dra=0.0, double ddec=0.0)
 		: m_day(day), m_coords(c), m_lst(lst), m_mag(mag), m_dRA(dra), m_dDEC(ddec) { }
 	Ephemeris(const Ephemeris& e)
 		: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), m_mag(e.m_mag), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
@@ -40,7 +40,8 @@ public:
 
 	bool parseEphemerisString(const string& s);
 	void printEphemeris() const;
-	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename);
+	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename, string& object);
+	static string objectName(const string& buf);
 };
 
 
@@ -71,26 +72,37 @@ void Ephemeris::printEphemeris() const {
 	printf("dDEC = %.2f\n", m_dDEC);
 }
 
-void Ephemeris::readEphemerisFile(vector<Ephemeris>& ephemerides, const string& filename) {
-	ifstream ephemerisFile("mars.txt");
+void Ephemeris::readEphemerisFile(vector<Ephemeris>& ephemerides, const string& filename, string& object) {
+	ifstream ephemerisFile(filename);
 	if (ephemerisFile.is_open()) {
 		bool canReadEntries = false;
 		while (!ephemerisFile.eof()) {
 			string buffer;
 			getline(ephemerisFile, buffer);
-			if (buffer == "$$EOE") break;
+			if (!canReadEntries && buffer.substr(1,7) == "Revised") 
+				object = objectName(buffer);
+			if (buffer == "$$EOE") 
+				break;
 			if (canReadEntries) {
 				Ephemeris e;
 				if (e.parseEphemerisString(buffer))
 					ephemerides.push_back(e);
 			}
-			if (buffer == "$$SOE") canReadEntries = true;
+			if (buffer == "$$SOE") 
+				canReadEntries = true;
 		}
 		ephemerisFile.close();
 	}
 	else {
 		cout << "Ephemeris file \"" << filename << "\" is not valid\n";
 	}
+}
+
+string Ephemeris::objectName(const string& buf) {
+	stringstream ss(buf);
+	string temp, output;
+	ss >> temp >> temp >> temp >> temp >> output;
+	return output;
 }
 
 #endif

@@ -17,7 +17,7 @@ private:
 	char m_grade;			// graded plate quality, A being best and C being worst
 
 public:
-	Plate(int num=0, const Coords& c={}, const string& g="", const double j=0.f, const char grade=' ')
+	Plate(int num=0, const Coords& c={}, const string& g="", const double j=0.0, const char grade=' ')
 		: m_id(num), m_coords(c), m_gregorian(g), m_julian(j), m_grade(grade) { }
 	Plate(const Plate& p)
 		: m_id(p.m_id), m_coords(p.m_coords), m_gregorian(p.m_gregorian), m_julian(p.m_julian), m_grade(p.m_grade) { }
@@ -41,7 +41,7 @@ public:
 	static double LSTtoGST(const int hour, const int min, const float sec);
 	static double GSTtoUT(const double gst, const double JD);
 	static void readPlateCatalog(vector<Plate>& plates, const string& filename);
-	static void printMatch(const Plate& p, const Coords& interp, const double distance);
+	static void printMatch(const Plate& p, const Coords& interp, const double distance, const double x, const double y);
 
 };
 
@@ -75,7 +75,7 @@ bool Plate::parsePlateString(const string& buffer) {
 	    !isdigit(lst[3]))
 		return false;
 	m_julian = convertDate(m_gregorian, lst);
-	double exposureTime = stod(buffer.substr(52,4))/14400.f;
+	double exposureTime = stod(buffer.substr(52,4))/14400.0;
 	m_julian += exposureTime;
 	// plate quality grade, from A to C
 	m_grade = buffer[56];
@@ -113,9 +113,9 @@ double Plate::convertDate(const string& gregorianDate, const string& lst) {
 	int mins = stoi(lst.substr(2, 2));
 
 	double julian = gregorianToJulian(day, month, year);
-	double gst = LSTtoGST(hour, mins, 0.f);
+	double gst = LSTtoGST(hour, mins, 0.0);
 	double ut = GSTtoUT(gst, julian);
-	double frac = (ut - 12) / 24;
+	double frac = (ut - 12.0) / 24.0;
 	julian += frac;
 
 	return julian;
@@ -138,7 +138,7 @@ double Plate::gregorianToJulian(float d, int m, int y) {
 	Takes the LST at Siding Springs observatory and returns the Greenwich Sidereal Time
 */
 double Plate::LSTtoGST(const int hour, const int min, const float sec) {
-	double lstF = hour + (min/60.f) + (sec/3600.f);
+	double lstF = hour + (min/60.0) + (sec/3600.0);
 	double longitude = 149.07/15; 	// in hours, the 149.07 taken from UKSTU website
 	double gst = lstF - longitude;
 	while (gst > 24) gst -= 24;
@@ -152,7 +152,7 @@ double Plate::LSTtoGST(const int hour, const int min, const float sec) {
 */
 double Plate::GSTtoUT(const double gst, const double JD) {
 	double S = JD - 2451545;
-	double T = S / 36525.f;
+	double T = S / 36525.0;
 	double T0 = 6.697374558 + (2400.051336 * T) + (0.000025862 * T * T);
 	while (T0 > 24) T0 -= 24;
 	while (T0 < 0)  T0 += 24;
@@ -187,7 +187,7 @@ void Plate::readPlateCatalog(vector<Plate>& plates, const string& filename) {
 	}
 }
 
-void Plate::printMatch(const Plate& p, const Coords& interp, const double distance) {
+void Plate::printMatch(const Plate& p, const Coords& interp, const double distance, const double x, const double y) {
 	printf("plateID = %5d\n", p.m_id);
 	printf("\tplateRA  =%10.4f deg\n", p.m_coords.getDegRA());
 	printf("\tplateDEC =%10.4f deg\n", p.m_coords.getDegDEC());
@@ -195,6 +195,8 @@ void Plate::printMatch(const Plate& p, const Coords& interp, const double distan
 	printf("\tephemDEC =%10.4f deg\n", interp.getDegDEC());
 	printf("\tdistance =%10.4f deg\n", distance);
 	printf("\tUTdate   =%10s\n", p.m_gregorian.c_str());
+	printf("\tXi       =%10.4f\n", x);
+	printf("\tEta      =%10.4f\n", y);
 }
 
 
