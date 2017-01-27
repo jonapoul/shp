@@ -202,7 +202,7 @@ void Coords::toSpherical(const double x, const double y, const double z, Coords&
 
 /*
 	Linearly interpolates between two spherical polar coordinates.
-	1. Transform both coordinates into 3D cartesian coordinates
+	1. Transform both RA/DEC coordinates into 3D cartesian coordinates
 	2. Linearly interpolate between each x, y z value using the time values t0, t and t1
 	3. Normalise each value
 	4. Transform back to spherical polars

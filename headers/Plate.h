@@ -37,28 +37,29 @@ public:
 	bool parsePlateString(const string& buffer);
 	void printPlate() const;
 	static double convertDate(const string& gregorian, const string& lst);
-	static int dayOfTheWeek(const int d, const int m, const int y);
-	static int hourShift(const int day, const int month, const int year);
 	static double gregorianToJulian(float d, int m, int y);
-	static float LSTtoGST(const int hour, const int min);
-	static float GSTtoUT(const float gst, const float JD);
+	static double LSTtoGST(const int hour, const int min, const float sec);
+	static double GSTtoUT(const double gst, const double JD);
 	static void readPlateCatalog(vector<Plate>& plates, const string& filename);
+	static void printMatch(const Plate& p, const Coords& interp, const double distance);
+
 };
 
 /*
 	Reads a line from the plate catalog file and fills in the relevant fields of the Plate object
+	Input: 
+		buffer = full string representing all of one plate record
+	Output:
+		boolean flag to indicate whether the plate is valid for our purposes
 */
 bool Plate::parsePlateString(const string& buffer) {
 	// plate suffix column
 	// if this isn't blank it indicates shenanigans while recording the image, such as a tracking shot or multiple images
 	// T = tracked shot, M = multiple shots, P = full-aperture prism
-	if (buffer[7] == 'T' || 
-	    buffer[7] == 'M' || 
-	    buffer[7] == 'P') 
+	if (buffer[7] == 'T' || buffer[7] == 'M' || buffer[7] == 'P') 
 		return false;
 	// checking for the word "TEST", so we can throw it out
-	if (buffer.substr(16,4) == "TEST" || 
-	    buffer.substr(15,4) == "TEST")
+	if (buffer.substr(16,4) == "TEST" || buffer.substr(15,4) == "TEST")
 		return false;
 	// plate number, for later reference
 	m_id = stoi(buffer.substr(2, 5));
@@ -74,6 +75,8 @@ bool Plate::parsePlateString(const string& buffer) {
 	    !isdigit(lst[3]))
 		return false;
 	m_julian = convertDate(m_gregorian, lst);
+	double exposureTime = stod(buffer.substr(52,4))/14400.f;
+	m_julian += exposureTime;
 	// plate quality grade, from A to C
 	m_grade = buffer[56];
 
@@ -81,8 +84,7 @@ bool Plate::parsePlateString(const string& buffer) {
 }
 
 /*
-	Prints out a plate object's info
-	Used for testing
+	Prints out a plate object's info. Used for testing
 */
 void Plate::printPlate() const {
 	printf("ID = %6d ", m_id);
@@ -91,17 +93,6 @@ void Plate::printPlate() const {
 	printf("GD = %s ", m_gregorian.c_str());
 	printf("JD = %.2f ", m_julian);
 	printf("Grade = %c\n", m_grade);
-}
-
-/*
-	Calculates the day of the week as an integer fro 0-6, representing Sunday=0, Monday=1... Saturday=6
-*/
-int Plate::dayOfTheWeek(const int d, const int m, const int y) {
-	float julian = gregorianToJulian(d, m, y);
-	float A = (julian + 1.5) / 7.f;
-	float f = A - int(A);
-	int n = int(7*f + 0.5);
-	return n;
 }
 
 /* 
@@ -121,42 +112,13 @@ double Plate::convertDate(const string& gregorianDate, const string& lst) {
 	int hour = stoi(lst.substr(0, 2));
 	int mins = stoi(lst.substr(2, 2));
 
-	// calculating the time difference between GMT and local time, either +10 or +11h
-	int timeDiff = hourShift(day, month, year);
 	double julian = gregorianToJulian(day, month, year);
-	float gst = LSTtoGST(hour, mins);
-	float ut = GSTtoUT(gst, julian);
-	//if (ut < 12) ut += 24;
-	float frac = (ut - 12) / 24;
+	double gst = LSTtoGST(hour, mins, 0.f);
+	double ut = GSTtoUT(gst, julian);
+	double frac = (ut - 12) / 24;
 	julian += frac;
 
 	return julian;
-}
-
-int Plate::hourShift(const int day, const int month, const int year) {
-	int firstSunday, firstOfTheMonth, hourShift = 10;
-	if (month > 10 || month < 4) {
-	 	return 11;
-	} else if (month == 4) {
-		if (day > 7) {
-			return 10;
-		} else {
-			firstOfTheMonth = dayOfTheWeek(1, 4, year);
-			firstSunday = (firstOfTheMonth == 0) ? 1 : 8-firstOfTheMonth;
-			if (day < firstSunday)
-				return 11;
-		}
-	} else if (month == 10) {
-		if (day > 7) {
-			return 11;
-		} else {
-			firstOfTheMonth = dayOfTheWeek(1, 10, year);
-			firstSunday = (firstOfTheMonth == 0) ? 1 : 8-firstOfTheMonth;
-			if (day >= firstSunday)
-				return 11;
-		}
-	}
-	return 10;
 }
 
 double Plate::gregorianToJulian(float d, int m, int y) {
@@ -175,10 +137,10 @@ double Plate::gregorianToJulian(float d, int m, int y) {
 /*
 	Takes the LST at Siding Springs observatory and returns the Greenwich Sidereal Time
 */
-float Plate::LSTtoGST(const int hour, const int min) {
-	float lstF = hour + (min / 60.f);
-	float longitude = 149.07 / 15; 	// in hours, the 149.07 taken from UKSTU website
-	float gst = lstF - longitude;
+double Plate::LSTtoGST(const int hour, const int min, const float sec) {
+	double lstF = hour + (min/60.f) + (sec/3600.f);
+	double longitude = 149.07/15; 	// in hours, the 149.07 taken from UKSTU website
+	double gst = lstF - longitude;
 	while (gst > 24) gst -= 24;
 	while (gst < 0) gst += 24;
 	return gst;
@@ -188,7 +150,7 @@ float Plate::LSTtoGST(const int hour, const int min) {
 	Converts decimal Greenwich Sidereal Time to decimal Universal Time
 	Also uses the precalculated julian date
 */
-float Plate::GSTtoUT(const float gst, const float JD) {
+double Plate::GSTtoUT(const double gst, const double JD) {
 	double S = JD - 2451545;
 	double T = S / 36525.f;
 	double T0 = 6.697374558 + (2400.051336 * T) + (0.000025862 * T * T);
@@ -224,5 +186,16 @@ void Plate::readPlateCatalog(vector<Plate>& plates, const string& filename) {
 		cout << "Plate file \"" << filename << "\" is not valid\n";
 	}
 }
+
+void Plate::printMatch(const Plate& p, const Coords& interp, const double distance) {
+	printf("plateID = %5d\n", p.m_id);
+	printf("\tplateRA  =%10.4f deg\n", p.m_coords.getDegRA());
+	printf("\tplateDEC =%10.4f deg\n", p.m_coords.getDegDEC());
+	printf("\tephemRA  =%10.4f deg\n", interp.getDegRA());
+	printf("\tephemDEC =%10.4f deg\n", interp.getDegDEC());
+	printf("\tdistance =%10.4f deg\n", distance);
+	printf("\tUTdate   =%10s\n", p.m_gregorian.c_str());
+}
+
 
 #endif
