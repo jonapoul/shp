@@ -4,6 +4,7 @@
 #include <vector>
 #include <fstream>
 #include <sstream>
+#include <math.h>
 #include "Coords.h"
 using namespace std;
 
@@ -11,28 +12,31 @@ class Plate {
 private:
 	int m_id;				// plate identification number
 	Coords m_coords;		// combines RA and DEC to one object
-	double m_julianDate;		// julian date at the start of exposure
-	char m_grade;			// graded plate quality, A being best and C being 
+	string m_gregorian;		// UT gregorian date string, formatted as yymmdd
+	double m_julian;		// julian date at the start of exposure
+	char m_grade;			// graded plate quality, A being best and C being worst
 
 public:
-	Plate(int num=0, const Coords& c={}, const double jd=0.f, const string& lst="", const char grade=' ')
-		: m_id(num), m_coords(c), m_julianDate(jd), m_grade(grade) { }
+	Plate(int num=0, const Coords& c={}, const string& g="", const double j=0.f, const char grade=' ')
+		: m_id(num), m_coords(c), m_gregorian(g), m_julian(j), m_grade(grade) { }
 	Plate(const Plate& p)
-		: m_id(p.m_id), m_coords(p.m_coords), m_julianDate(p.m_julianDate), m_grade(p.m_grade) { }
+		: m_id(p.m_id), m_coords(p.m_coords), m_gregorian(p.m_gregorian), m_julian(p.m_julian), m_grade(p.m_grade) { }
 
-	int    getID()     const { return m_id; };
-	Coords getCoords() const { return m_coords; };
-	RA     getRA()     const { return m_coords.getRA(); };
-	DEC    getDEC()    const { return m_coords.getDEC(); };
-	double  getDate()  const { return m_julianDate; };
-	char   getGrade()  const { return m_grade; };
+	int    getID() 		  const { return m_id; };
+	Coords getCoords() 	  const { return m_coords; };
+	RA     getRA()		  const { return m_coords.getRA(); };
+	DEC    getDEC() 	  const { return m_coords.getDEC(); };
+	string getGregorian() const { return m_gregorian; }
+	double getJulian()    const { return m_julian; };
+	char   getGrade()	  const { return m_grade; };
 
-	void setID    (const int id) 	 { m_id = id; };
-	void setCoords(const Coords& c)  { m_coords = c; };
-	void setRA    (const RA& ra) 	 { m_coords.setRA(ra); };
-	void setDEC   (const DEC& dec) 	 { m_coords.setDEC(dec); };
-	void setDate  (const double d) 	 { m_julianDate = d; };
-	void setGrade (const char grade) { m_grade = grade; };
+	void setID    	 (const int id) 	{ m_id = id; };
+	void setCoords	 (const Coords& c)  { m_coords = c; };
+	void setRA    	 (const RA& ra) 	{ m_coords.setRA(ra); };
+	void setDEC   	 (const DEC& dec)   { m_coords.setDEC(dec); };
+	void setGregorian(const string& g)  { m_gregorian = g; }
+	void setJulian 	 (const double j) 	{ m_julian = j; };
+	void setGrade 	 (const char grade) { m_grade = grade; };
 
 	bool parsePlateString(const string& buffer);
 	void printPlate() const;
@@ -65,14 +69,15 @@ bool Plate::parsePlateString(const string& buffer) {
 	// reading the RA/DEC coordinates in sexagesimal format
 	m_coords.parseCoordsFromPlate(buffer);
 	// julian date calculated from gregorian
-	string gregorianDate = buffer.substr(30, 6);
+	m_gregorian = buffer.substr(30, 6);
 	string lst = buffer.substr(36, 4);
+
 	if (!isdigit(lst[0]) || 
 	    !isdigit(lst[1]) || 
 	    !isdigit(lst[2]) || 
 	    !isdigit(lst[3]))
 		return false;
-	m_julianDate = convertDate(gregorianDate, lst);
+	m_julian = convertDate(m_gregorian, lst);
 	// plate quality grade, from A to C
 	m_grade = buffer[56];
 
@@ -84,8 +89,12 @@ bool Plate::parsePlateString(const string& buffer) {
 	Used for testing
 */
 void Plate::printPlate() const {
-	printf("ID = %6d RA = %s ", m_id, m_coords.getRA().toString().c_str());
-	printf("DEC = %s Date = %.2f Quality = %c\n", m_coords.getDEC().toString().c_str(), m_julianDate, m_grade);
+	printf("ID = %6d ", m_id);
+	printf("RA = %s ", m_coords.getRA().toString().c_str());
+	printf("DEC = %s ", m_coords.getDEC().toString().c_str());
+	printf("GD = %s ", m_gregorian.c_str());
+	printf("JD = %.2f ", m_julian);
+	printf("Grade = %c\n", m_grade);
 }
 
 /*
@@ -121,7 +130,7 @@ double Plate::convertDate(const string& gregorianDate, const string& lst) {
 	double julian = gregorianToJulian(day, month, year);
 	float gst = LSTtoGST(hour, mins);
 	float ut = GSTtoUT(gst, julian);
-	if (ut < 12) ut += 24;
+	//if (ut < 12) ut += 24;
 	float frac = (ut - 12) / 24;
 	julian += frac;
 
@@ -172,7 +181,7 @@ double Plate::gregorianToJulian(float d, int m, int y) {
 */
 float Plate::LSTtoGST(const int hour, const int min) {
 	float lstF = hour + (min / 60.f);
-	float longitude = 149.0661 / 15; 	// in hours, the 149 is longitude of the observatory in degrees
+	float longitude = 149.07 / 15; 	// in hours, the 149.07 taken from UKSTU website
 	float gst = lstF - longitude;
 	while (gst > 24) gst -= 24;
 	while (gst < 0) gst += 24;
@@ -181,10 +190,11 @@ float Plate::LSTtoGST(const int hour, const int min) {
 
 /*
 	Converts decimal Greenwich Sidereal Time to decimal Universal Time
+	Also uses the precalculated julian date
 */
 float Plate::GSTtoUT(const float gst, const float JD) {
-	float S = JD - 2451545;
-	float T = S / 36525.f;
+	double S = JD - 2451545;
+	double T = S / 36525.f;
 	double T0 = 6.697374558 + (2400.051336 * T) + (0.000025862 * T * T);
 	while (T0 > 24) T0 -= 24;
 	while (T0 < 0)  T0 += 24;
@@ -207,7 +217,8 @@ void Plate::readPlateCatalog(vector<Plate>& plates, const string& filename) {
 			getline(platesFile, buffer);
 			if (buffer.length() > 0) {
 				Plate p;
-				if (p.parsePlateString(buffer)) 
+				// only adds it to the array if the plate is valid
+				if (p.parsePlateString(buffer))
 					plates.push_back(p);
 			}
 		}

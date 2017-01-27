@@ -11,7 +11,7 @@ using namespace std;
 
 class Ephemeris {
 private:
-	float m_day;		// time in Julian days
+	double m_day;		// time in Julian days
 	Coords m_coords;	// RA/DEC coordinates
 	double m_lst;		// Apparent Local Sidereal Time from the observing point
 	float m_mag;		// Apparent magnitude of the object in the sky
@@ -24,23 +24,23 @@ public:
 	Ephemeris(const Ephemeris& e)
 		: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), m_mag(e.m_mag), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
 
-	float 	getJulianDay() 	const { return m_day; };
-	Coords 	getCoords() 	const { return m_coords; };
-	RA 		getRA() 		const { return m_coords.getRA(); };
-	DEC 	getDEC() 		const { return m_coords.getDEC(); };
-	double 	getLST() 		const { return m_lst; };
-	float 	getApMag() 		const { return m_mag; };
-	double 	getErrorRA() 	const { return m_dRA; };
-	double 	getErrorDEC() 	const { return m_dDEC; };
+	double 	getJulian()   const { return m_day; };
+	Coords 	getCoords()   const { return m_coords; };
+	RA 		getRA() 	  const { return m_coords.getRA(); };
+	DEC 	getDEC() 	  const { return m_coords.getDEC(); };
+	double 	getLST()	  const { return m_lst; };
+	float 	getApMag()	  const { return m_mag; };
+	double 	getErrorRA()  const { return m_dRA; };
+	double 	getErrorDEC() const { return m_dDEC; };
 
-	void setJulianDay(const float d) 	 { m_day = d; };
-	void setCoords   (const Coords& c) 	 { m_coords = c; };
-	void setRA       (const RA& r) 		 { m_coords.setRA(r); };
-	void setDEC      (const DEC& d) 	 { m_coords.setDEC(d); };
-	void setApLST    (const double lst)  { m_lst = lst; };
-	void setApMag    (const float mag) 	 { m_mag = mag; };
-	void setErrorRA  (const double dra)  { m_dRA = dra; };
-	void setErrorDEC (const double ddec) { m_dDEC = ddec; };
+	void setJulian  (const double d) 	{ m_day = d; };
+	void setCoords  (const Coords& c) 	{ m_coords = c; };
+	void setRA      (const RA& r) 		{ m_coords.setRA(r); };
+	void setDEC     (const DEC& d) 	 	{ m_coords.setDEC(d); };
+	void setApLST   (const double lst)  { m_lst = lst; };
+	void setApMag   (const float mag) 	{ m_mag = mag; };
+	void setErrorRA (const double dra)  { m_dRA = dra; };
+	void setErrorDEC(const double ddec) { m_dDEC = ddec; };
 
 	bool parseEphemerisString(const string& s);
 	void printEphemeris() const;
@@ -57,7 +57,7 @@ bool Ephemeris::parseEphemerisString(const string& s) {
 	ss >> m_day >> temp >> ra >> dec >> m_lst >> m_mag >> temp >> dRA_str >> dDEC_str;
 
 	// converting the two double values (in degrees) to full RA/DEC objects
-	m_coords = { {ra}, {dec} };
+	m_coords = { ra, dec };
 
 	// checking whether the errors in RA/DEC are valid
 	m_dRA  = (dRA_str  == "n.a.") ? 0.f : stod(dRA_str);
@@ -66,22 +66,27 @@ bool Ephemeris::parseEphemerisString(const string& s) {
 }
 
 void Ephemeris::printEphemeris() const {
-	printf("Day = %.1f RA = %.3f DEC = %.3f ", m_day, m_coords.getRA().getDegrees(), m_coords.getDEC().getDegrees());
-	printf("LST = %.2f ApMag = %.2f dRA = %.1f dDEC = %.1f\n", m_lst, m_mag, m_dRA, m_dDEC);
+	printf("JD = %.2f ", m_day);
+	printf("RA = %.3f ", m_coords.getRA().getDegrees());
+	printf("DEC = %.3f ", m_coords.getDEC().getDegrees());
+	printf("LST = %.4f ", m_lst);
+	printf("ApMag = %.2f ", m_mag);
+	printf("dRA = %.2f ", m_dRA);
+	printf("dDEC = %.2f\n", m_dDEC);
 }
 
-void Ephemeris::readEphemerisFile(vector<Ephemeris>& eph, const string& filename) {
+void Ephemeris::readEphemerisFile(vector<Ephemeris>& ephemerides, const string& filename) {
 	ifstream ephemerisFile("mars.txt");
 	if (ephemerisFile.is_open()) {
 		bool canReadEntries = false;
 		while (!ephemerisFile.eof()) {
 			string buffer;
 			getline(ephemerisFile, buffer);
-			if (buffer == "$$EOE") canReadEntries = false;
+			if (buffer == "$$EOE") break;
 			if (canReadEntries) {
 				Ephemeris e;
 				if (e.parseEphemerisString(buffer))
-					eph.push_back(e);
+					ephemerides.push_back(e);
 			}
 			if (buffer == "$$SOE") canReadEntries = true;
 		}

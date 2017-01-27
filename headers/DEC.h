@@ -1,13 +1,12 @@
 #ifndef DEC_H	
 #define DEC_H
 
+#include <iostream>
 #include <string>
 #include <math.h>
 #include <iomanip>
-#include <iostream>
 #include <sstream>
 using namespace std;
-
 class RA;
 
 class DEC {
@@ -35,8 +34,8 @@ public:
 	void setDeg 	  (const int d) 	 { m_deg = d; };
 	void setMins	  (const int m) 	 { m_min = m; };
 	void setSecs	  (const float s) 	 { m_sec = s; };
-	void setDegrees   (const double d) 	 { m_degrees = d; };
-	void setRadians   (const double r) 	 { m_radians = r; };
+	void setDegrees   (const double d) 	 { m_degrees = d; m_radians = d*M_PI/180; };
+	void setRadians   (const double r) 	 { m_radians = r; m_degrees = r*180/M_PI; };
 
 	void   fixDEC();
 	string toString()  const;
@@ -60,7 +59,6 @@ DEC::DEC(const bool isPos, const int d, const int m, const float s)
 		m_isPositive = false;
 		m_deg *= -1;
 	}
-	fixDEC();
 	m_degrees = toDecimal();
 	m_radians = m_degrees * M_PI / 180.f;
 }
@@ -102,22 +100,16 @@ void DEC::fixDEC() {
 }
 
 string DEC::toString() const {
-	stringstream ss;
-	ss << fixed << setprecision(2);
-	if (m_isPositive)
-		ss << '+';
-	else 
-		ss << '-';
-	if (m_deg < 10 && m_deg > -10) 	
-		ss << '0';
-	ss << abs(m_deg) << '\370';
-	if (m_min < 10)
-		ss << '0';
-	ss << m_min << '\'';
-	if (m_sec < 10)
-		ss << '0';
-	ss << int(m_sec) << '\"';
-	return ss.str();
+	string output;
+	if (m_isPositive) output += '+';
+	else			  output += '-';
+	if (m_deg < 10) output += '0';
+	output += to_string(m_deg) + '\370';
+	if (m_min < 10) output += '0';
+	output += to_string(m_min) + '\'';
+	if (m_sec < 10) output += '0';
+	output += to_string(int(m_sec)) + '\"';
+	return output;
 }
 
 float DEC::toDecimal() const {
@@ -132,18 +124,6 @@ float DEC::toRadians() const {
 ostream& operator<<(ostream& os, const DEC& dec) {
 	os << dec.toString();
     return os;
-}
-
-DEC operator+(const DEC& a, const DEC& b) {
-	DEC output(a.m_deg+b.m_deg, a.m_min+b.m_min, a.m_sec+b.m_sec); 
-	output.fixDEC();
-	return output;
-}
-
-DEC operator-(const DEC& a, const DEC& b) {
-	DEC output(a.m_deg-b.m_deg, a.m_min-b.m_min, a.m_sec-b.m_sec); 
-	output.fixDEC();
-	return output;
 }
 
 bool operator==(const DEC& a, const DEC& b) { 

@@ -1,15 +1,13 @@
 #ifndef RA_H
 #define RA_H
 
-#include <string>
 #include <iostream>
-#include <sstream>
-#include <iomanip>
+#include <string>
 #include <math.h>
+#include <iomanip>
+#include <sstream>
 #include "DEC.h"
 using namespace std;
-
-class DEC;
 
 class RA {
 private:
@@ -33,8 +31,8 @@ public:
 	void setHours  (const int h) 	{ m_hour = h; };
 	void setMins   (const int m)	{ m_mins = m; };
 	void setSecs   (const float s)	{ m_secs = s; };
-	void setDegrees(const double d)	{ m_degrees = d; };
-	void setRadians(const double r)	{ m_radians = r; };
+	void setDegrees(const double d)	{ m_degrees = d; m_radians = d*M_PI/180; };
+	void setRadians(const double r)	{ m_radians = r; m_degrees = r*180/M_PI; };
 
 	void   fixRA();
 	string toString()  const;
@@ -42,8 +40,6 @@ public:
 	float  toRadians() const;
 
 	friend ostream& operator<<(ostream& os, const RA& ra);
-	friend RA 		operator+ (const RA& a, const RA& b);
-	friend RA 		operator- (const RA& a, const RA& b);
 	friend bool 	operator==(const RA& a, const RA& b);
 	friend bool 	operator!=(const RA& a, const RA& b);
 	friend bool 	operator< (const RA& a, const RA& b);
@@ -55,7 +51,6 @@ public:
 
 RA::RA(const int h, const int m, const float s) 
 	: m_hour(h), m_mins(m), m_secs(s) { 
-	fixRA();
 	m_degrees = toDecimal();
 	m_radians = m_degrees * M_PI / 180.f;
 }
@@ -90,15 +85,14 @@ void RA::fixRA() {
 }
 
 string RA::toString() const {
-	stringstream ss;
-	ss << fixed << setprecision(2);
-	if (m_hour < 10)	ss << '0';
-	ss << m_hour << 'h';
-	if (m_mins < 10)	ss << '0';
-	ss << m_mins << 'm';
-	if (m_secs < 10) 	ss << '0';
-	ss << int(m_secs) << 's';
-	return ss.str();
+	string output;
+	if (m_hour < 10) output += '0';
+	output += to_string(m_hour) + 'h';
+	if (m_mins < 10) output += '0';
+	output += to_string(m_mins) + 'm';
+	if (m_secs < 10) output += '0';
+	output += to_string(int(m_secs)) + 's';
+	return output;
 }
 
 float RA::toDecimal() const {
@@ -113,18 +107,6 @@ float RA::toRadians() const {
 ostream& operator<<(ostream& os, const RA& ra) {
 	os << ra.toString();
     return os;
-}
-
-RA operator+(const RA& a, const RA& b) {
-	RA output(a.m_hour+b.m_hour, a.m_mins+b.m_mins, a.m_secs+b.m_secs); 
-	output.fixRA();
-	return output;
-}
-
-RA operator-(const RA& a, const RA& b) {
-	RA output(a.m_hour-b.m_hour, a.m_mins-b.m_mins, a.m_secs-b.m_secs); 
-	output.fixRA();
-	return output;
 }
 
 bool operator==(const RA& a, const RA& b) { 
