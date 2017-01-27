@@ -4,32 +4,36 @@
 #include <iostream>
 #include <string>
 #include <math.h>
-#include "RA.h"
-#include "DEC.h"
 using namespace std;
 
 class Coords {
 private:
-	RA  m_ra;
-	DEC m_dec;
+	double m_radRA;
+	double m_radDEC;
+	double m_degRA;
+	double m_degDEC;
 
 public:
-	Coords(const RA& r = {}, const DEC& d = {})
-		: m_ra(r), m_dec(d) { }
+	Coords(const double degRA = 0, const double degDEC = 0)
+		: m_degRA(degRA), m_degDEC(degDEC) { m_radRA = degRA*M_PI/180; m_radDEC = degDEC*M_PI/180; }
 	Coords(const Coords& c)
-		: m_ra(c.m_ra), m_dec(c.m_dec) { }
-	Coords(const double ra, const double dec)   // both of these in DEGREES, not radians
-		: m_ra(ra), m_dec(dec) { m_ra.setRadians(ra*M_PI/180); m_dec.setRadians(dec*M_PI/180); }
+		: m_radRA(c.m_radRA), m_radDEC(c.m_radDEC), m_degRA(c.m_degRA), m_degDEC(c.m_degDEC) { }
 
-	RA  getRA()  const { return m_ra; };
-	DEC getDEC() const { return m_dec; };
+	double getDegRA()  const { return m_degRA; }
+	double getDegDEC() const { return m_degDEC; }
+	double getRadRA()  const { return m_radRA; }
+	double getRadDEC() const { return m_radDEC; }
 
-	void setRA (const RA& r)  { m_ra = r; };
-	void setDEC(const DEC& d) { m_dec = d; };
+	void setDegRA (const double r) { m_degRA = r;  m_radRA = r*M_PI/180; }
+	void setDegDEC(const double d) { m_degDEC = d; m_radDEC = d*M_PI/180; }
+	void setRadRA (const double r) { m_radRA = r;  m_degRA = r*180/M_PI; }
+	void setRadDEC(const double d) { m_radDEC = d; m_degDEC = d*180/M_PI; }
 
 	void parseCoordsFromPlate(const string& record);
+	string RAtoString() const;
+	string DECtoString() const;
 	static double cosAngularDistance(const Coords& a, const Coords& b);
-	static double angularDistance(const Coords& a, const Coords& b);
+	static double angularDistance(const Coords& a, const Coords& b, const bool inDegrees = true);
 	static void gnomonic(const Coords& c, const Coords& c0, double& x, double& y, int& status);
 	static void inverseGnomonic(const double x, const double y, const Coords& c0, Coords& c);
 	static void toCartesian(const Coords& c, double& x, double& y, double& z);
@@ -45,31 +49,69 @@ void Coords::parseCoordsFromPlate(const string& record) {
 		cerr << "string passed to Coords::parseFromPlateRecord() is too short\n";
 		return;
 	}
-	m_ra = {
-		stoi(record.substr(20,2)),
-		stoi(record.substr(22,2)),
-		stoi(record.substr(24,1)) * 6.f
-	};
-	m_dec = {
-		!(record[25] == '-'),		// if the sign column is '-', set isPositive to true
-		stoi(record.substr(26,2)),
-		stoi(record.substr(28,2)),
-		0.f
-	};
+	int hour =	stoi(record.substr(20,2));
+	int mins =	stoi(record.substr(22,2));
+	int secs =	stoi(record.substr(24,1)) * 6.f;
+	m_degRA = hour*15.f + mins/4.f + secs/240.f;
+	m_radRA = m_degRA * M_PI / 180;
+
+	int degrees = stoi(record.substr(26,2));
+	int arcmins = stoi(record.substr(28,2));
+	int arcsecs = 0;
+	bool isPositive = (record[25] != '-');
+	m_degDEC = degrees + arcmins/60.f;
+	m_degDEC *= (isPositive ? 1 : -1);
+	m_radDEC = m_degDEC * M_PI / 180;
+}
+
+string Coords::RAtoString() const {
+	string output = "";
+	double decimal = m_degRA / 15;
+	int h = int(decimal);
+	if (h < 10) output += '0';
+	output += to_string(h) + 'h';
+	decimal = (decimal - h) * 60;
+	int m = int(decimal);
+	if (m < 10) output += '0';
+	output += to_string(m) + 'm';
+	decimal -= m;
+	int s = int(decimal * 60);
+	if (s < 10) output += '0';
+	output += to_string(s) + 's';
+	return output;
+}
+
+string Coords::DECtoString() const {
+	string output = "";
+	double decimal = m_degDEC;
+	if (decimal < 0) {
+		output += '-';
+		decimal *= -1;
+	} else output += '+';
+	int d = int(decimal);
+	if (d < 10) output += '0';
+	output += to_string(d) + '\370';
+	decimal = (decimal - d) * 60;
+	int m = int(decimal);
+	if (m < 10) output += '0';
+	output += to_string(m) + '\'';
+	decimal -= m;
+	int s = int(decimal * 60);
+	if (s < 10) output += '0';
+	output += to_string(s) + '\"';
+	return output;
 }
 
 double Coords::cosAngularDistance(const Coords& a, const Coords& b) {
-	double a_ra  = a.m_ra.getRadians();
-	double a_dec = a.m_dec.getRadians() * (a.m_dec.isPositive() ? 1 : -1);
-	double b_ra  = b.m_ra.getRadians();
-	double b_dec = b.m_dec.getRadians() * (b.m_dec.isPositive() ? 1 : -1);
-
-	double cosx   = sin(a_dec)*sin(b_dec) + cos(a_dec)*cos(b_dec)*cos(a_ra-b_ra);
-	return cosx;
+	double a_ra  = a.m_radRA;
+	double a_dec = a.m_radDEC;
+	double b_ra  = b.m_radRA;
+	double b_dec = b.m_radDEC;
+	return sin(a_dec)*sin(b_dec) + cos(a_dec)*cos(b_dec)*cos(a_ra-b_ra);
 }
 
-double Coords::angularDistance(const Coords& a, const Coords& b) {
-	return acos(cosAngularDistance(a, b)) * 180 / M_PI;			// in degrees
+double Coords::angularDistance(const Coords& a, const Coords& b, const bool inDegrees) {
+	return acos(cosAngularDistance(a, b)) * (inDegrees ? 180/M_PI : 1);
 }
 
 /*
@@ -85,12 +127,11 @@ double Coords::angularDistance(const Coords& a, const Coords& b) {
 **                                    3 = error, antistar too far from axis
 */
 void Coords::gnomonic(const Coords& c, const Coords& c0, double& x, double& y, int& status) {
-	double ra   = c.getRA().getRadians();
-	double dec  = c.getDEC().getRadians();
-	double ra0  = c0.getRA().getRadians();
-	double dec0 = c0.getDEC().getRadians();
+	double ra   = c.m_radRA;
+	double dec  = c.m_radDEC;
+	double ra0  = c0.m_radRA;
+	double dec0 = c0.m_radDEC;
 	
-	/* Trig functions */
 	double sin_dec0 = sin(dec0);
 	double cos_dec0 = cos(dec0);
 	double sin_dec  = sin(dec);
@@ -130,33 +171,33 @@ void Coords::gnomonic(const Coords& c, const Coords& c0, double& x, double& y, i
 **     *ra,*dec    double   spherical coordinates (0-2pi,+/-pi/2)
 */
 void Coords::inverseGnomonic(const double x, const double y, const Coords& c0, Coords& c) {
-	double dec0 = c0.getDEC().getRadians();
-	double ra0  = c0.getRA().getRadians();
+	double dec0 = c0.m_radDEC;
+	double ra0  = c0.m_radRA;
 	double sin_dec0 = sin(dec0);
 	double cos_dec0 = cos(dec0);
 	double denom = cos_dec0 - y*sin_dec0;
 	double atan = atan2(x, denom) + ra0;
 	while (atan > 2*M_PI) atan -= 2*M_PI;
 	while (atan < 0)	  atan += 2*M_PI;
-	double ra = atan * 180/M_PI;
 	double dec = atan2(sin_dec0 + y*cos_dec0, sqrt(x*x + denom*denom)) * 180/M_PI;
-	c.setRA(ra);
-	c.setDEC(dec);
+	c.setRadRA(atan);
+	c.setRadDEC( atan2(sin_dec0 + y*cos_dec0, sqrt(x*x + denom*denom)) );
 }
 
 void Coords::toCartesian(const Coords &c, double &x, double &y, double &z) {
-	double ra = c.getRA().getRadians();
-	double dec = c.getDEC().getRadians();
+	double ra = c.m_radRA;
+	double dec = c.m_radDEC;
 	x = cos(dec) * cos(ra);
 	y = cos(dec) * sin(ra);
 	z = sin(dec);
 }
 
 void Coords::toSpherical(const double x, const double y, const double z, Coords& c) {
-	double ra = atan2(y, x) * 180/M_PI;
-	double dec = (M_PI/2 - atan2(sqrt(x*x + y*y), z)) * 180/M_PI;
-	c.setRA(ra);
-	c.setDEC(dec);
+	double ra = atan2(y, x);
+	while (ra < 0) 		ra += 2*M_PI;
+	while (ra > 2*M_PI) ra -= 2*M_PI;
+	c.setRadRA(ra);
+	c.setRadDEC( M_PI/2 - atan2(sqrt(x*x + y*y), z) );
 }
 
 /*
@@ -167,7 +208,6 @@ void Coords::toSpherical(const double x, const double y, const double z, Coords&
 	4. Transform back to spherical polars
 */
 Coords Coords::interpolate(const Coords& c0, const double t0, const Coords& c1, const double t1, const double t) {
-	
 	double x0, y0, z0, x1, y1, z1;
 	toCartesian(c0, x0, y0, z0);
 	toCartesian(c1, x1, y1, z1);
@@ -184,8 +224,8 @@ Coords Coords::interpolate(const Coords& c0, const double t0, const Coords& c1, 
 }
 
 Coords operator+(const Coords& c1, const Coords& c2) {
-	double ra  = c1.getRA().getDegrees()  + c2.getRA().getDegrees();
-	double dec = c1.getDEC().getDegrees() + c2.getDEC().getDegrees();
+	double ra  = c1.m_degRA  + c2.m_degRA;
+	double dec = c1.m_degDEC + c2.m_degDEC;
 	
 	if (ra > 360) 	 ra -= 360;
 	else if (ra < 0) ra += 360;
@@ -197,11 +237,7 @@ Coords operator+(const Coords& c1, const Coords& c2) {
 		dec = -180 - dec;
 		ra  = 360 - ra;
 	}
-	RA  r(ra);
-	DEC d(dec);
-	r.fixRA();
-	d.fixDEC();
-	return Coords(r, d);
+	return Coords(ra, dec);
 }
 
 #endif

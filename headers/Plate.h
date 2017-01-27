@@ -24,16 +24,12 @@ public:
 
 	int    getID() 		  const { return m_id; };
 	Coords getCoords() 	  const { return m_coords; };
-	RA     getRA()		  const { return m_coords.getRA(); };
-	DEC    getDEC() 	  const { return m_coords.getDEC(); };
 	string getGregorian() const { return m_gregorian; }
 	double getJulian()    const { return m_julian; };
 	char   getGrade()	  const { return m_grade; };
 
 	void setID    	 (const int id) 	{ m_id = id; };
 	void setCoords	 (const Coords& c)  { m_coords = c; };
-	void setRA    	 (const RA& ra) 	{ m_coords.setRA(ra); };
-	void setDEC   	 (const DEC& dec)   { m_coords.setDEC(dec); };
 	void setGregorian(const string& g)  { m_gregorian = g; }
 	void setJulian 	 (const double j) 	{ m_julian = j; };
 	void setGrade 	 (const char grade) { m_grade = grade; };
@@ -90,8 +86,8 @@ bool Plate::parsePlateString(const string& buffer) {
 */
 void Plate::printPlate() const {
 	printf("ID = %6d ", m_id);
-	printf("RA = %s ", m_coords.getRA().toString().c_str());
-	printf("DEC = %s ", m_coords.getDEC().toString().c_str());
+	printf("RA = %s ", m_coords.RAtoString().c_str());
+	printf("DEC = %s ", m_coords.DECtoString().c_str());
 	printf("GD = %s ", m_gregorian.c_str());
 	printf("JD = %.2f ", m_julian);
 	printf("Grade = %c\n", m_grade);

@@ -26,8 +26,6 @@ public:
 
 	double 	getJulian()   const { return m_day; };
 	Coords 	getCoords()   const { return m_coords; };
-	RA 		getRA() 	  const { return m_coords.getRA(); };
-	DEC 	getDEC() 	  const { return m_coords.getDEC(); };
 	double 	getLST()	  const { return m_lst; };
 	float 	getApMag()	  const { return m_mag; };
 	double 	getErrorRA()  const { return m_dRA; };
@@ -35,8 +33,6 @@ public:
 
 	void setJulian  (const double d) 	{ m_day = d; };
 	void setCoords  (const Coords& c) 	{ m_coords = c; };
-	void setRA      (const RA& r) 		{ m_coords.setRA(r); };
-	void setDEC     (const DEC& d) 	 	{ m_coords.setDEC(d); };
 	void setApLST   (const double lst)  { m_lst = lst; };
 	void setApMag   (const float mag) 	{ m_mag = mag; };
 	void setErrorRA (const double dra)  { m_dRA = dra; };
@@ -57,7 +53,7 @@ bool Ephemeris::parseEphemerisString(const string& s) {
 	ss >> m_day >> temp >> ra >> dec >> m_lst >> m_mag >> temp >> dRA_str >> dDEC_str;
 
 	// converting the two double values (in degrees) to full RA/DEC objects
-	m_coords = { ra, dec };
+	m_coords = Coords(ra, dec);
 
 	// checking whether the errors in RA/DEC are valid
 	m_dRA  = (dRA_str  == "n.a.") ? 0.f : stod(dRA_str);
@@ -67,8 +63,8 @@ bool Ephemeris::parseEphemerisString(const string& s) {
 
 void Ephemeris::printEphemeris() const {
 	printf("JD = %.2f ", m_day);
-	printf("RA = %.3f ", m_coords.getRA().getDegrees());
-	printf("DEC = %.3f ", m_coords.getDEC().getDegrees());
+	printf("RA = %.3f ", m_coords.getDegRA());
+	printf("DEC = %.3f ", m_coords.getDegDEC());
 	printf("LST = %.4f ", m_lst);
 	printf("ApMag = %.2f ", m_mag);
 	printf("dRA = %.2f ", m_dRA);
