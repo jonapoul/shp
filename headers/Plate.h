@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <math.h>
+#include <boost/algorithm/string.hpp>
 #include "Coords.h"
 using namespace std;
 
@@ -15,24 +16,29 @@ private:
 	string m_gregorian;		// UT gregorian date string, formatted as yymmdd
 	double m_julian;		// julian date at the start of exposure
 	char m_grade;			// graded plate quality, A being best and C being worst
+	double m_magLimit;		// faintest object that can be seen on the plate, decided by the emulsion/filter/etc
 
 public:
-	Plate(int num=0, const Coords& c={}, const string& g="", const double j=0.0, const char grade=' ')
-		: m_id(num), m_coords(c), m_gregorian(g), m_julian(j), m_grade(grade) { }
+	Plate(int num=0, const Coords& c={}, const string& g="", 
+	      const double j=0.0, const char grade=' ', const double lim=0.0)
+		: m_id(num), m_coords(c), m_gregorian(g), m_julian(j), m_grade(grade), m_magLimit(lim) { }
 	Plate(const Plate& p)
-		: m_id(p.m_id), m_coords(p.m_coords), m_gregorian(p.m_gregorian), m_julian(p.m_julian), m_grade(p.m_grade) { }
+		: m_id(p.m_id), m_coords(p.m_coords), m_gregorian(p.m_gregorian), 
+		  m_julian(p.m_julian), m_grade(p.m_grade), m_magLimit(p.m_magLimit) { }
 
 	int    getID() 		  const { return m_id; };
 	Coords getCoords() 	  const { return m_coords; };
 	string getGregorian() const { return m_gregorian; }
 	double getJulian()    const { return m_julian; };
 	char   getGrade()	  const { return m_grade; };
+	double getMagLimit()  const { return m_magLimit; }
 
 	void setID    	 (const int id) 	{ m_id = id; };
 	void setCoords	 (const Coords& c)  { m_coords = c; };
 	void setGregorian(const string& g)  { m_gregorian = g; }
 	void setJulian 	 (const double j) 	{ m_julian = j; };
 	void setGrade 	 (const char grade) { m_grade = grade; };
+	void setMagLimit (const double lim) { m_magLimit = lim; }
 
 	bool parsePlateString(const string& buffer);
 	void printPlate() const;
@@ -42,6 +48,7 @@ public:
 	static double GSTtoUT(const double gst, const double JD);
 	static void readPlateCatalog(vector<Plate>& plates, const string& filename);
 	static void printMatch(const Plate& p, const Coords& interp, const double distance, const double x, const double y);
+	static double limitingMagnitude(const string& buffer);
 
 };
 
@@ -79,6 +86,8 @@ bool Plate::parsePlateString(const string& buffer) {
 	m_julian += exposureTime;
 	// plate quality grade, from A to C
 	m_grade = buffer[56];
+	// calculating the faintest apparent magnitude that would be visible on the plate
+	m_magLimit = limitingMagnitude(buffer);
 
 	return true;
 }
@@ -121,6 +130,9 @@ double Plate::convertDate(const string& gregorianDate, const string& lst) {
 	return julian;
 }
 
+/*
+	Converts a UT Gregorian date to a floating point Julian date
+*/
 double Plate::gregorianToJulian(float d, int m, int y) {
 	if (m < 3) { 
 		y--; 
@@ -187,6 +199,9 @@ void Plate::readPlateCatalog(vector<Plate>& plates, const string& filename) {
 	}
 }
 
+/*
+	Prints all relevant info about a plate/ephemeris match
+*/
 void Plate::printMatch(const Plate& p, const Coords& interp, const double distance, const double x, const double y) {
 	printf("plateID = %5d\n", p.m_id);
 	printf("\tplateRA  =%10.4f deg\n", p.m_coords.getDegRA());
@@ -199,5 +214,33 @@ void Plate::printMatch(const Plate& p, const Coords& interp, const double distan
 	printf("\tEta      =%10.4f\n", y);
 }
 
+/*
+	Takes the plate prefix/emulsions/filters from the plate record and calculates the 
+	magnitude of the faintest possible object on that plate.
+
+	Return values pulled from http://www.roe.ac.uk/ifa/wfau/ukstu/telescope.html#fe
+*/
+double Plate::limitingMagnitude(const string& buffer) {
+	string prefix = buffer.substr(0, 2);
+	boost::algorithm::trim(prefix);
+	if (prefix == "U" || prefix == "B" || prefix == "V") 
+		return 21.0;
+	else if (prefix == "J" || prefix == "BJ" || prefix == "OR")
+		return 22.5;
+	else if (prefix == "R" || prefix == "HA")
+		return 21.5;
+	else if (prefix == "I")
+		return 19.0;
+	else if (prefix == "OR") {
+		string emulsion = buffer.substr(40, 6);
+		boost::algorithm::trim(emulsion);
+		if (emulsion == "IIIa-F")
+			return 21.5;
+		else
+			return 22.5;
+	}
+	else
+		return 23.0;
+}
 
 #endif

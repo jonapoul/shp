@@ -116,16 +116,16 @@ double Coords::angularDistance(const Coords& a, const Coords& b, const bool inDe
 /*
 **  Gnomonic projection of spherical coordinates onto tangent plane
 **  Given:
-**     c      	   Coords   RA/DEC of point to be projected in radians
-**     c0          Coords   RA/DEC of tangent point in radians
+**     c      	   Coords   RA/DEC of point to be projected
+**     c0          Coords   RA/DEC of tangent point
 **  Returned:
-**     x,y    	   double   rectangular coordinates on tangent plane
-**     *j          int      status:   0 = OK, star on tangent plane
+**     xi,eta  	   double   rectangular coordinates on tangent plane
+**     status      int      status:   0 = OK, star on tangent plane
 **                                    1 = error, star too far from axis
 **                                    2 = error, antistar on tangent plane
 **                                    3 = error, antistar too far from axis
 */
-void Coords::gnomonic(const Coords& c, const Coords& c0, double& x, double& y, int& status) {
+void Coords::gnomonic(const Coords& c, const Coords& c0, double& xi, double& eta, int& status) {
 	double ra   = c.m_radRA;
 	double dec  = c.m_radDEC;
 	double ra0  = c0.m_radRA;
@@ -157,40 +157,46 @@ void Coords::gnomonic(const Coords& c, const Coords& c0, double& x, double& y, i
    	}
 
 	/* Compute tangent plane coordinates (even in dubious cases) */
-   	x = cos_dec*sin_dRA / denom;
-   	y = ( sin_dec*cos_dec0 - cos_dec*sin_dec0*cos_dRA ) / denom;
+   	xi  = ( cos_dec*sin_dRA ) / denom;
+   	eta = ( sin_dec*cos_dec0 - cos_dec*sin_dec0*cos_dRA ) / denom;
 }
 
 /*
 **  Transform tangent plane coordinates into spherical.
 **  Given:
 **     xi,eta      double   tangent plane rectangular coordinates
-**     raz,decz    double   spherical coordinates of tangent point
+**     c0          Coords   spherical coordinates of tangent point
 **  Returned:
-**     *ra,*dec    double   spherical coordinates (0-2pi,+/-pi/2)
+**     c 		   Coords   spherical coordinates of the point at (xi,eta)
 */
-void Coords::inverseGnomonic(const double x, const double y, const Coords& c0, Coords& c) {
-	double dec0 = c0.m_radDEC;
-	double ra0  = c0.m_radRA;
+void Coords::inverseGnomonic(const double xi, const double eta, const Coords& c0, Coords& c) {
+	double dec0 	= c0.m_radDEC;
+	double ra0  	= c0.m_radRA;
 	double sin_dec0 = sin(dec0);
 	double cos_dec0 = cos(dec0);
-	double denom = cos_dec0 - y*sin_dec0;
-	double atan = atan2(x, denom) + ra0;
+	double denom 	= cos_dec0 - eta*sin_dec0;
+	double atan 	= atan2(xi, denom) + ra0;
 	while (atan > 2.0*M_PI) atan -= 2.0*M_PI;
 	while (atan < 0.0)	  	atan += 2.0*M_PI;
-	double dec = atan2(sin_dec0 + y*cos_dec0, sqrt(x*x + denom*denom)) * radToDeg;
+	double dec = atan2(sin_dec0 + eta*cos_dec0, sqrt(xi*xi + denom*denom)) * radToDeg;
 	c.setRadRA(atan);
-	c.setRadDEC( atan2(sin_dec0 + y*cos_dec0, sqrt(x*x + denom*denom)) );
+	c.setRadDEC( atan2(sin_dec0 + eta*cos_dec0, sqrt(xi*xi + denom*denom)) );
 }
 
+/*
+	Converts spherical RA/DEC coordinates into 3D cartesian coordinates, assuming unit sphere
+*/
 void Coords::toCartesian(const Coords &c, double &x, double &y, double &z) {
-	double ra = c.m_radRA;
+	double ra  = c.m_radRA;
 	double dec = c.m_radDEC;
 	x = cos(dec) * cos(ra);
 	y = cos(dec) * sin(ra);
 	z = sin(dec);
 }
 
+/*
+	Converts 3D cartesian coordinates to spherical RA/DEC, assuming unit sphere
+*/
 void Coords::toSpherical(const double x, const double y, const double z, Coords& c) {
 	double ra = atan2(y, x);
 	while (ra < 0.0) 		ra += 2.0*M_PI;
@@ -221,6 +227,7 @@ Coords Coords::interpolate(const Coords& c0, const double t0, const Coords& c1, 
 	toSpherical(x, y, z, output);
 	return output;
 }
+
 
 Coords operator+(const Coords& c1, const Coords& c2) {
 	double ra  = c1.m_degRA  + c2.m_degRA;

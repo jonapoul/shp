@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
 	// This is the threshold used for the first check, to make sure the angular distance is reasonable
 	// before i do the gnomonic and inverse transformations to get more specific
 	double distanceThreshold = sqrt(2*3.2*3.2);
-	int count = 0;
+	int matchCount = 0, tooFaintCount = 0;
 
 	// through every plate record
 	for (int p = 0; p < (int)plates.size()-1; p++) {
@@ -38,8 +38,10 @@ int main(int argc, char* argv[]) {
 		Coords interpedCoords  = Coords::interpolate(before, beforeDate, after, afterDate, plateDate);
 		Coords plateCoords	   = plates[p].getCoords();
 		double angularDistance = Coords::angularDistance(interpedCoords, plateCoords);
+		double interpedApMag   = Ephemeris::interpolate(ephemerides[i].getApMag(), beforeDate, 
+		                                                ephemerides[i+1].getApMag(), afterDate, plateDate);
 
-		if (angularDistance < distanceThreshold) {
+		if (angularDistance < distanceThreshold && interpedApMag <= plates[p].getMagLimit()) {
 			double x, y;
 			int status;
 			// calculate the x/y coordinates of the interpolated point, with the plate centre used as
@@ -54,15 +56,27 @@ int main(int argc, char* argv[]) {
 				// calculate the angular distance between the points (in degrees)
 				double distanceToXAxis = Coords::angularDistance(interpedCoords, fromXAxis);
 				double distanceToYAxis = Coords::angularDistance(interpedCoords, fromYAxis);
+				// if the distances are both less than 3.2 degrees, the point will be on the plate
 				if (distanceToXAxis < 3.2 && distanceToYAxis < 3.2) {
 					Plate::printMatch(plates[p], interpedCoords, angularDistance, x, y);
-					count++;
+					printf("\tdtX=%f dtY=%f\n", distanceToXAxis, distanceToYAxis);
+					matchCount++;
 				}
 			}
+		} else if (interpedApMag > plates[p].getMagLimit()) {
+			tooFaintCount++;
 		}
 	}
-	if (count > 0) cout << count << " matching plates found for " << objectName << "!\n";
-	else 		   cout << "No matches found for " << objectName << "!\n";
+	if (matchCount > 0) {
+		cout << matchCount << " matching plates found for " << objectName << "!\n";
+	} else {
+		cout << "No matches found for " << objectName << "!\n";
+	}
+	if (tooFaintCount > 0) {
+		cout << tooFaintCount << (matchCount>0 ? " other" : "") << " plate" << (tooFaintCount==1 ? "" : "s");
+	 	cout << " matched, but " << (tooFaintCount==1 ? "was" : "were") << " too faint to show up on the plate!\n";
+	}
+
 
 
 	chrono::duration<double> elapsed_seconds = chrono::system_clock::now() - start;
@@ -70,12 +84,8 @@ int main(int argc, char* argv[]) {
 }
 
 
-// check if angular distance is less than sqrt(2 * 6.4^2)
-	// if so, find x, y values of the coords
-	// check angular distance from x=0 and y=0 axes
-	// if either is less than 3.2 deg, reject
-	// otherwise find/use scaling number to get position in the image
+// do scaling to find position on the plate as millimetres from top and left sides
 
-// work out the limiting magnitude for each filter/emulsion, defaulting to 23 or if no matches
+// try to incorporate the errors in RA/DEC from the ephemeris somewhere
 // make an attempt at quadratic/cubic fitting instead of linear
 	// too time-consuming probably?

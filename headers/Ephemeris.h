@@ -5,6 +5,7 @@
 #include <vector>
 #include <sstream>
 #include <fstream>
+#include <boost/algorithm/string.hpp>
 #include "Coords.h"
 
 using namespace std;
@@ -41,10 +42,14 @@ public:
 	bool parseEphemerisString(const string& s);
 	void printEphemeris() const;
 	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename, string& object);
-	static string objectName(const string& buf);
+	static double interpolate(const double mag0, const double t0, const double mag1, const double t1, const double t);
 };
 
 
+/*
+	Takes a full ephemeris record string and pulls the info from it, such as julian day, 
+	RA/DEC coordinates (plus their errors), LST, apparent magnitude
+*/
 bool Ephemeris::parseEphemerisString(const string& s) {
 	if (s.length() == 0) return false;
 
@@ -62,6 +67,9 @@ bool Ephemeris::parseEphemerisString(const string& s) {
 	return true;
 }
 
+/*
+	Prints all the data stored in an Ephemeris object. Used for testing
+*/
 void Ephemeris::printEphemeris() const {
 	printf("JD = %.2f ", m_day);
 	printf("RA = %.3f ", m_coords.getDegRA());
@@ -72,6 +80,11 @@ void Ephemeris::printEphemeris() const {
 	printf("dDEC = %.2f\n", m_dDEC);
 }
 
+/*
+	Goes through the ephemeris file to pick out all relevant data, then stores them all in 
+	a vector of Ephemeris objects. The $$SOE and $$EOE tags signify the start and end of the 
+	data lines.
+*/
 void Ephemeris::readEphemerisFile(vector<Ephemeris>& ephemerides, const string& filename, string& object) {
 	ifstream ephemerisFile(filename);
 	if (ephemerisFile.is_open()) {
@@ -79,8 +92,10 @@ void Ephemeris::readEphemerisFile(vector<Ephemeris>& ephemerides, const string& 
 		while (!ephemerisFile.eof()) {
 			string buffer;
 			getline(ephemerisFile, buffer);
-			if (!canReadEntries && buffer.substr(1,7) == "Revised") 
-				object = objectName(buffer);
+			if (!canReadEntries && buffer.substr(1,7) == "Revised") {
+				object = buffer.substr(24, 40);
+				boost::algorithm::trim(object);
+			}
 			if (buffer == "$$EOE") 
 				break;
 			if (canReadEntries) {
@@ -95,14 +110,13 @@ void Ephemeris::readEphemerisFile(vector<Ephemeris>& ephemerides, const string& 
 	}
 	else {
 		cout << "Ephemeris file \"" << filename << "\" is not valid\n";
+		exit(1);
 	}
 }
 
-string Ephemeris::objectName(const string& buf) {
-	stringstream ss(buf);
-	string temp, output;
-	ss >> temp >> temp >> temp >> temp >> output;
-	return output;
+double Ephemeris::interpolate(const double mag0, const double t0, const double mag1, const double t1, const double t) {
+	return mag0 + (t-t0)*(mag1-mag0)/(t1-t0);
 }
+
 
 #endif
