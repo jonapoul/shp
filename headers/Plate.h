@@ -47,7 +47,8 @@ public:
 	static double LSTtoGST(const int hour, const int min, const float sec);
 	static double GSTtoUT(const double gst, const double JD);
 	static void readPlateCatalog(vector<Plate>& plates, const string& filename);
-	static void printMatch(const Plate& p, const Coords& interp, const double distance, const double x, const double y);
+	static void printMatch(const Plate& p, const Coords& interp, const double xi, const double eta, 
+	                       const double mag, const double distanceToXAxis, const double distanceToYAxis);
 	static double limitingMagnitude(const string& buffer);
 
 };
@@ -202,16 +203,34 @@ void Plate::readPlateCatalog(vector<Plate>& plates, const string& filename) {
 /*
 	Prints all relevant info about a plate/ephemeris match
 */
-void Plate::printMatch(const Plate& p, const Coords& interp, const double distance, const double x, const double y) {
+void Plate::printMatch(const Plate& p, const Coords& interp, const double xi, const double eta, 
+                       const double mag, const double distanceToXAxis, const double distanceToYAxis) {
 	printf("plateID = %5d\n", p.m_id);
-	printf("\tplateRA  =%10.4f deg\n", p.m_coords.getDegRA());
-	printf("\tplateDEC =%10.4f deg\n", p.m_coords.getDegDEC());
-	printf("\tephemRA  =%10.4f deg\n", interp.getDegRA());
-	printf("\tephemDEC =%10.4f deg\n", interp.getDegDEC());
-	printf("\tdistance =%10.4f deg\n", distance);
-	printf("\tUTdate   =%10s\n", p.m_gregorian.c_str());
-	printf("\tXi       =%10.4f\n", x);
-	printf("\tEta      =%10.4f\n", y);
+	printf("\tplateCoord = (%8.4f, %8.4f) deg\n", p.m_coords.getDegRA(),p.m_coords.getDegDEC());
+	printf("\tephemCoord = (%8.4f, %8.4f) deg\n", interp.getDegRA(), interp.getDegDEC());
+
+	// date conversion from "yymmdd" -> "dd/mm/yyyy"
+	int year  = stoi(p.m_gregorian.substr(0,2));
+	int month = stoi(p.m_gregorian.substr(2,2));
+	int day   = stoi(p.m_gregorian.substr(4,2));
+	year += (year < 17) ? 2000 : 1900;
+	string date = "";
+	if (day < 10) date += '0';
+	date += to_string(day) + '/';
+	if (month < 10) date += '0';
+	date += to_string(month) + '/';
+	date += to_string(year);
+
+	printf("\tUTdate     = %9s\n", date.c_str());
+	printf("\tApMag      =%9.4f\n", mag);
+
+	// coordinate conversion from xi/eta to x/y coordinates from bottom left of plate (in mm)
+	double x = 3.2 + (xi  >= 0 ? -distanceToXAxis :  distanceToXAxis);
+	double y = 3.2 + (eta >= 0 ?  distanceToYAxis : -distanceToYAxis);
+	double degreesToMillimetres = 3600.0 / 67.12;
+	x *= degreesToMillimetres;
+	y *= degreesToMillimetres;
+	printf("\tplatePos   = (%8.2f, %8.2f) mm from bottom left corner\n", x, y);
 }
 
 /*

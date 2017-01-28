@@ -58,8 +58,13 @@ int main(int argc, char* argv[]) {
 				double distanceToYAxis = Coords::angularDistance(interpedCoords, fromYAxis);
 				// if the distances are both less than 3.2 degrees, the point will be on the plate
 				if (distanceToXAxis < 3.2 && distanceToYAxis < 3.2) {
-					Plate::printMatch(plates[p], interpedCoords, angularDistance, x, y);
-					printf("\tdtX=%f dtY=%f\n", distanceToXAxis, distanceToYAxis);
+					Plate::printMatch( 	plates[p], 
+					            		interpedCoords, 
+					            		x, 
+					            		y, 
+					            		interpedApMag, 
+					            		distanceToXAxis, 
+					            		distanceToYAxis  );
 					matchCount++;
 				}
 			}
@@ -74,10 +79,8 @@ int main(int argc, char* argv[]) {
 	}
 	if (tooFaintCount > 0) {
 		cout << tooFaintCount << (matchCount>0 ? " other" : "") << " plate" << (tooFaintCount==1 ? "" : "s");
-	 	cout << " matched, but " << (tooFaintCount==1 ? "was" : "were") << " too faint to show up on the plate!\n";
+		cout << " matched, but " << (tooFaintCount==1 ? "was" : "were") << " too faint to show up on the plate!\n";
 	}
-
-
 
 	chrono::duration<double> elapsed_seconds = chrono::system_clock::now() - start;
 	printf("\nElapsed time: %.4fs\n\n", elapsed_seconds.count());
@@ -87,5 +90,8 @@ int main(int argc, char* argv[]) {
 // do scaling to find position on the plate as millimetres from top and left sides
 
 // try to incorporate the errors in RA/DEC from the ephemeris somewhere
+	// error propagation through the transformation?
+	// even error circle around the point on the plate? 
+	// probably distorted?
 // make an attempt at quadratic/cubic fitting instead of linear
 	// too time-consuming probably?
