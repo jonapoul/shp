@@ -2,8 +2,11 @@
 #define COORDS_H
 
 #include <iostream>
+#include <vector>
 #include <string>
 #include <math.h>
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/lu.hpp>
 using namespace std;
 
 class Coords {
@@ -35,13 +38,21 @@ public:
 	void parseCoordsFromPlate(const string& record);
 	string RAtoString() const;
 	string DECtoString() const;
+
 	static double cosAngularDistance(const Coords& a, const Coords& b);
 	static double angularDistance(const Coords& a, const Coords& b, const bool inDegrees = true);
 	static void gnomonic(const Coords& c, const Coords& c0, double& x, double& y, int& status);
 	static void inverseGnomonic(const double x, const double y, const Coords& c0, Coords& c);
 	static void toCartesian(const Coords& c, double& x, double& y, double& z);
 	static void toSpherical(const double x, const double y, const double z, Coords& c);
-	static Coords interpolate(const Coords& c0, const double x0, const Coords& c1, const double x1, const double x);
+	static Coords cartesianInterp(const Coords& c0, const double x0, const Coords& c1, 
+	                              const double x1, const double x);
+	static Coords cartesianInterp(const vector<Coords>& coords, const vector<double>& time, 
+	                              const double t, const int degree);
+	template<typename T>
+	static vector<T> polyfit(const vector<T>& oX, const vector<T>& oY, int nDegree);
+	template<typename T>
+	static T polyvalue(const vector<T>& coeff, const T x);
 
 	friend Coords operator+(const Coords& c1, const Coords& c2);
 };
@@ -212,7 +223,8 @@ void Coords::toSpherical(const double x, const double y, const double z, Coords&
 	3. Normalise each value
 	4. Transform back to spherical polars
 */
-Coords Coords::interpolate(const Coords& c0, const double t0, const Coords& c1, const double t1, const double t) {
+Coords Coords::cartesianInterp(const Coords& c0, const double t0, const Coords& c1, 
+                               const double t1, const double t) {
 	double x0, y0, z0, x1, y1, z1;
 	toCartesian(c0, x0, y0, z0);
 	toCartesian(c1, x1, y1, z1);
@@ -226,6 +238,89 @@ Coords Coords::interpolate(const Coords& c0, const double t0, const Coords& c1, 
 	Coords output;
 	toSpherical(x, y, z, output);
 	return output;
+}
+
+Coords Coords::cartesianInterp(const vector<Coords>& coords, const vector<double>& time, 
+                               const double t, const int degree) {
+	size_t size = coords.size();
+	if (size != time.size()) {
+		cout << "The two vectors passed to Coords::cartesianInterp() are different sizes: coords is ";
+		cout << coords.size() << " and time is " << time.size() << ".\nExiting...\n\n";
+		exit(1);
+	}
+	vector<double> x(size), y(size), z(size);
+	for (size_t i = 0; i < size; i++) {
+		toCartesian(coords[i], x[i], y[i], z[i]);
+	}
+
+	// quadratic fit, I would maybe do more but I'd lose precision in the julian dates
+	vector<double> xCoeff = polyfit(time, x, degree);
+	vector<double> yCoeff = polyfit(time, y, degree);
+	vector<double> zCoeff = polyfit(time, z, degree);
+
+	// calculating the interpolated x,y,z values based on the 3 fitted polynomials
+	double xt = polyvalue(xCoeff, t);
+	double yt = polyvalue(yCoeff, t);
+	double zt = polyvalue(zCoeff, t);
+	// normalising
+	double mag = sqrt(xt*xt + yt*yt + zt*zt);
+	xt /= mag;
+	yt /= mag;
+	zt /= mag;
+	// sending it back to spherical
+	Coords output;
+	toSpherical(xt, yt, zt, output);
+	return output;
+}
+
+template<typename T>
+vector<T> Coords::polyfit(const vector<T>& oX, const vector<T>& oY, int nDegree) {
+	using namespace boost::numeric::ublas;
+	if (oX.size() != oY.size()) throw invalid_argument( "X and Y vector sizes do not match" );
+	
+	// more intuative to increment nDegree
+	nDegree++;
+	size_t nCount = oX.size();
+	matrix<T> oXMatrix(nCount, nDegree);
+	matrix<T> oYMatrix(nCount, 1);
+	
+	// copy y matrix
+	for (size_t i = 0; i < nCount; i++)
+		oYMatrix(i, 0) = oY[i];
+
+	// create the X matrix
+	for (size_t nRow = 0; nRow < nCount; nRow++) {
+		T nVal = 1.0;
+		for (int nCol = 0; nCol < nDegree; nCol++) {
+			oXMatrix(nRow, nCol) = nVal;
+			nVal *= oX[nRow];
+		}
+	}
+
+	// transpose X matrix
+	matrix<T> oXtMatrix( trans(oXMatrix) );
+	// multiply transposed X matrix with X matrix
+	matrix<T> oXtXMatrix( prec_prod(oXtMatrix, oXMatrix) );
+	// multiply transposed X matrix with Y matrix
+	matrix<T> oXtYMatrix( prec_prod(oXtMatrix, oYMatrix) );
+	// lu decomposition
+	permutation_matrix<int> pert(oXtXMatrix.size1());
+	const size_t singular = lu_factorize(oXtXMatrix, pert);
+	// must be singular
+	BOOST_ASSERT( singular == 0 );
+	// backsubstitution
+	lu_substitute(oXtXMatrix, pert, oXtYMatrix);
+	// copy the result to coeff
+	return std::vector<T>( oXtYMatrix.data().begin(), oXtYMatrix.data().end() );
+}
+
+template<typename T>
+T Coords::polyvalue(const vector<T>& coeff, const T x) {
+	T y = 0.0;
+	for (int i = 0; i < (int)coeff.size(); i++) {
+		y += coeff[i] * pow(x, i);
+	}
+	return y;
 }
 
 

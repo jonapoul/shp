@@ -23,7 +23,8 @@ public:
 	Ephemeris(float day=0.0, Coords c={}, double lst=0.0, float mag=0.0, double dra=0.0, double ddec=0.0)
 		: m_day(day), m_coords(c), m_lst(lst), m_mag(mag), m_dRA(dra), m_dDEC(ddec) { }
 	Ephemeris(const Ephemeris& e)
-		: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), m_mag(e.m_mag), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
+		: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), m_mag(e.m_mag), m_dRA(e.m_dRA), 
+		  m_dDEC(e.m_dDEC) { }
 
 	double 	getJulian()   const { return m_day; };
 	Coords 	getCoords()   const { return m_coords; };
@@ -42,7 +43,10 @@ public:
 	bool parseEphemerisString(const string& s);
 	void printEphemeris() const;
 	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename, string& object);
-	static double interpolate(const double mag0, const double t0, const double mag1, const double t1, const double t);
+	static double linInterp(const double mag0, const double t0, const double mag1, const double t1, 
+	                        const double t);
+	static void findNearbyEphs(const vector<Ephemeris>& e, int numCoords, const int i,
+	                                       vector<Coords>& c, vector<double>& t);
 };
 
 
@@ -72,12 +76,12 @@ bool Ephemeris::parseEphemerisString(const string& s) {
 */
 void Ephemeris::printEphemeris() const {
 	printf("JD = %.2f ", m_day);
-	printf("RA = %.3f ", m_coords.getDegRA());
-	printf("DEC = %.3f ", m_coords.getDegDEC());
-	printf("LST = %.4f ", m_lst);
-	printf("ApMag = %.2f ", m_mag);
-	printf("dRA = %.2f ", m_dRA);
-	printf("dDEC = %.2f\n", m_dDEC);
+	printf("RA = %8.4f ", m_coords.getDegRA());
+	printf("DEC = %8.4f ", m_coords.getDegDEC());
+	printf("LST = %7.4f ", m_lst);
+	printf("ApMag = %5.2f ", m_mag);
+	printf("dRA = %.4f ", m_dRA);
+	printf("dDEC = %.4f\n", m_dDEC);
 }
 
 /*
@@ -114,9 +118,23 @@ void Ephemeris::readEphemerisFile(vector<Ephemeris>& ephemerides, const string& 
 	}
 }
 
-double Ephemeris::interpolate(const double mag0, const double t0, const double mag1, const double t1, const double t) {
+double Ephemeris::linInterp(const double mag0, const double t0, const double mag1, const double t1, const double t) {
 	return mag0 + (t-t0)*(mag1-mag0)/(t1-t0);
 }
 
+void Ephemeris::findNearbyEphs(const vector<Ephemeris>& e, int numCoords, const int i,
+                                        vector<Coords>& c, vector<double>& t) {
+	size_t N = e.size();
+	if (i > N) {
+		cout << "Error in Ephemeris::findNearbyCoords(): index " << i << " > vector size " << N << ".\n";
+		exit(1);
+	}
+	int shift = (numCoords % 2 == 1) ? numCoords/2 : (numCoords-1)/2;
+	int diff = (i-shift < 0) ? shift-i : 0;
+	for (int j = 0; j < numCoords; j++) {
+		c[j] = e[i-shift+j+diff].getCoords();
+		t[j] = e[i-shift+j+diff].getJulian();
+	}
+}
 
 #endif
