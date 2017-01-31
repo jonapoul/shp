@@ -45,12 +45,12 @@ public:
 	*/
 	bool parseEphemerisString(const string& s) {
 		if (s.length() == 0) return false;
-
-		stringstream ss(s);
+		string s2 = s.substr(0,18) + s.substr(21);
+		stringstream ss(s2);
 		string temp, dRA_str, dDEC_str;
 		double ra, dec;
-		ss >> m_day >> temp >> ra >> dec >> m_lst >> m_mag >> temp >> dRA_str >> dDEC_str;
-
+		ss >> m_day >> ra >> dec >> m_lst >> m_mag >> temp >> dRA_str >> dDEC_str;
+		
 		// converting the two double values (in degrees) to full RA/DEC objects
 		m_coords = Coords(ra, dec);
 

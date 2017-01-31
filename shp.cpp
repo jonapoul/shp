@@ -20,6 +20,8 @@ int main(int argc, char* argv[]) {
 
 	// defining the first date in the ephemeris file, for later reference
 	double firstEphDate = ephemerides[0].getJulian();
+	double secondEphDate = ephemerides[1].getJulian();
+	double step = secondEphDate - firstEphDate;
 
 	// sqrt(3.2*3.2 + 3.2*3.2) is the minimum circular radius for the object to possibly
 	// be on the plate. This is used as a first check before performing a polynomial fit
@@ -32,7 +34,7 @@ int main(int argc, char* argv[]) {
 		double plateDate  = plates[p].getJulian();
 
 		// i = index of the ephemeris record immediately before the plate date
-		int i 			  = int( plateDate-firstEphDate );
+		int i 			  = int( (plateDate-firstEphDate)/step );
 		Coords before 	  = ephemerides[i].getCoords();
 		double beforeDate = ephemerides[i].getJulian();
 		Coords after 	  = ephemerides[i+1].getCoords();
@@ -45,13 +47,12 @@ int main(int argc, char* argv[]) {
 		// the plate centre
 		Coords plateCoords	   = plates[p].getCoords();
 		double angularDistance = Coords::angularDistance(interpedCoords, plateCoords);
-		double interpedApMag   = Ephemeris::linInterp(	ephemerides[i].getApMag(), beforeDate, 
-														ephemerides[i+1].getApMag(), afterDate, 
-														plateDate);
+		double interpedApMag   = Ephemeris::linInterp(ephemerides[i].getApMag(), beforeDate, ephemerides[i+1].getApMag(), afterDate, plateDate);
 
+		// if the object is within a reasonable angular distance of the plate, do more accurate tests
 		if (angularDistance < 2*distanceThreshold && interpedApMag <= plates[p].getMagLimit()) {
 			// interpolating the ephemeris coordinates using the ephemeris records surrounding it
-			int numInterp = 6;
+			int numInterp = 10;
 			vector<Coords> nearbyCoords(numInterp);
 			vector<double> nearbyTimes(numInterp);
 			Ephemeris::findNearbyEphs(ephemerides, numInterp, i, nearbyCoords, nearbyTimes);
@@ -79,8 +80,7 @@ int main(int argc, char* argv[]) {
 					double toYAxis = Coords::angularDistance(interpedCoords, fromYAxis);
 					// if the distances are both less than 3.2 degrees, the point will be on the plate
 					if (toXAxis < 3.2 && toYAxis < 3.2) {
-						Plate::printMatch(	plates[p], interpedCoords, xi, eta, matchCount+1,
-											interpedApMag, toXAxis, toYAxis);
+						Plate::printMatch(plates[p], interpedCoords, xi, eta, matchCount+1, interpedApMag, toXAxis, toYAxis);
 						matchCount++;
 					}
 				}

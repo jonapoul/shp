@@ -2,15 +2,15 @@
 #define COORDS_H
 
 /*
-	This bit is to silence some Boost errors.
+	This ifdef bit is to silence some Boost errors
 	Robbed from http://www.vilipetek.com/2013/10/07/polynomial-fitting-in-c-using-boost/
 */
 #ifdef BOOST_UBLAS_TYPE_CHECK
-#	undef BOOST_UBLAS_TYPE_CHECK
+#undef BOOST_UBLAS_TYPE_CHECK
 #endif
 #define BOOST_UBLAS_TYPE_CHECK 0
 #ifndef _USE_MATH_DEFINES
-#	define _USE_MATH_DEFINES
+#define _USE_MATH_DEFINES
 #endif
 
 #include <iostream>
@@ -280,6 +280,7 @@ public:
 		double xt = polyvalue(xCoeff, t);
 		double yt = polyvalue(yCoeff, t);
 		double zt = polyvalue(zCoeff, t);
+
 		// normalising
 		double mag = sqrt(xt*xt + yt*yt + zt*zt);
 		xt /= mag;
