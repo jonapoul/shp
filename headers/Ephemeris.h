@@ -45,20 +45,25 @@ public:
 		Takes a full ephemeris record string and pulls the info from it, such as julian day, 
 		RA/DEC coordinates (plus their errors), LST, apparent magnitude
 	*/
-	bool parseEphemerisString(const string& s) {
+	bool parseEphemerisString(const string& s, const bool isSurfBrt) {
 		if (s.length() == 0) return false;
 		string s2 = s.substr(0,18) + s.substr(21);
 		stringstream ss(s2);
-		string temp, dRA_str, dDEC_str;
+		string temp, dRA_str, dDEC_str, diamStr, lstStr, magStr;
 		double ra, dec;
-		ss >> m_day >> ra >> dec >> m_lst >> m_mag >> temp >> m_diam >> dRA_str >> dDEC_str;
+		ss >> m_day >> ra >> dec >> lstStr >> magStr; 
+		if (isSurfBrt) ss >> temp;
+		ss >> diamStr >> dRA_str >> dDEC_str;
 
 		// converting the two double values (in degrees) to full RA/DEC objects
 		m_coords = Coords(ra, dec);
 
-		// checking whether the errors in RA/DEC are valid
-		m_dRA  = (dRA_str  == "n.a.") ? 0.0 : stod(dRA_str);
-		m_dDEC = (dDEC_str == "n.a.") ? 0.0 : stod(dDEC_str);
+		// checking whether some of the values are valid
+		m_mag  = (magStr   == "n.a.") ? -100 : stod(magStr);
+		m_lst  = (lstStr   == "n.a.") ?  0.0 : stod(lstStr);
+		m_diam = (diamStr  == "n.a.") ? -1.0 : stod(diamStr);
+		m_dRA  = (dRA_str  == "n.a.") ?  0.0 : stod(dRA_str);
+		m_dDEC = (dDEC_str == "n.a.") ?  0.0 : stod(dDEC_str);
 		return true;
 	}
 
@@ -81,21 +86,23 @@ public:
 		a vector of Ephemeris objects. The $$SOE and $$EOE tags signify the start and end of the 
 		data lines.
 	*/
-	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename, double& radius) {
+	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename) {
 		ifstream ephemerisFile(filename);
 		if (ephemerisFile.is_open()) {
 			bool canReadEntries = false;
+			bool isSurfBrt = false;
 			while (!ephemerisFile.eof()) {
 				string buffer;
 				getline(ephemerisFile, buffer);
+				// if the column headers include "S-brt", pass that flag to the parsing function
+				if (!canReadEntries && buffer.find("S-brt") != string::npos)
+					isSurfBrt = true;
 				if (buffer == "$$EOE") 
 					break;
 				if (canReadEntries) {
 					Ephemeris e;
-					if (e.parseEphemerisString(buffer)) {
+					if (e.parseEphemerisString(buffer, isSurfBrt)) {
 						eph.push_back(e);
-						// for some reason the diamater isnt being transferred to the vector without this line???
-						eph[eph.size()-1].m_diam = e.m_diam;
 					}
 				}
 				if (buffer == "$$SOE") 

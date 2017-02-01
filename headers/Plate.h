@@ -65,8 +65,11 @@ public:
 		    !isdigit(lst[3]))
 			return false;
 		m_julian = convertDate(m_gregorian, lst);
+
+		// adding half of the exposure time to the julian date
+		// this means that the outputted position is the position of the object halfway through the exposure
 		double exposureTime = stod(buffer.substr(52,4))/14400.0;
-		m_julian += exposureTime;
+		m_julian += exposureTime/2.0;
 		// plate quality grade, from A to C
 		m_grade = buffer[56];
 		// calculating the faintest apparent magnitude that would be visible on the plate
@@ -129,6 +132,36 @@ public:
 	}
 
 	/*
+		Converting a floating poit Julian Date to UT Gregorian date string as "dd/mm/yyyy"
+	*/
+	static string julianToGregorian(double jd) {
+		jd += 0.5;
+		int I = int(jd);
+		double F = jd - I;
+		int B;
+		if (I > 2299160) {
+			int A = int( (I-1867216.25)/36524.25 );
+			B = I + A - int(A/4.0) + 1;
+		}
+		else B = I;
+		int C = B + 1524;
+		int D = int( (C-122.1)/365.25 );
+		int E = int( 365.25*D );
+		int G = int( (C-E)/30.6001 );
+		int d = int(C - E + F - int(30.6001*G));
+		int m = (G < 13.5) ? G-1 : G-13;
+		int y = (m > 2.5) ? D-4716 : D-4715;
+		
+		string output;
+		if (d < 10) output += '0';
+		output += to_string(d) + '/';
+		if (m < 10) output += '0';
+		output += to_string(m) + '/';
+		output += to_string(y);
+		return output;
+	}
+
+	/*
 		Takes the LST at Siding Springs observatory and returns the Greenwich Sidereal Time
 	*/
 	static double LSTtoGST(const int hour, const int min, const float sec) {
@@ -186,16 +219,7 @@ public:
 	*/
 	static void printMatch( const Plate& p, const Coords& interp, const double xi, const double eta, const int count, const double mag, const double distanceToXAxis, const double distanceToYAxis, double diam) {
 		// date conversion from "yymmdd" -> "dd/mm/yyyy"
-		int year  = stoi(p.m_gregorian.substr(0,2));
-		int month = stoi(p.m_gregorian.substr(2,2));
-		int day   = stoi(p.m_gregorian.substr(4,2));
-		year += (year < 17) ? 2000 : 1900;
-		string date = "";
-		if (day < 10) date += '0';
-		date += to_string(day) + '/';
-		if (month < 10) date += '0';
-		date += to_string(month) + '/';
-		date += to_string(year);
+		string date = gregorianToString(p.m_gregorian);
 
 		// coordinate conversion from xi/eta to x/y coordinates from bottom left of plate (in mm)
 		double x = 3.2 + (xi  >= 0 ? -distanceToXAxis :  distanceToXAxis);
@@ -208,14 +232,14 @@ public:
 		diam = (diam / 3600.0) * degreesToMillimetres;
 
 		printf("%03d", count);
-		printf("\tplateID    = %d\n", p.m_id);
-		printf("\tdate       = %s\n", date.c_str());
-		printf("\tJulianDate = %.4f\n", p.m_julian);
-		printf("\tplateCoord = (%.4f, %.4f) deg\n", p.m_coords.getDegRA(), p.m_coords.getDegDEC());
-		printf("\tephemCoord = (%.4f, %.4f) deg\n", interp.getDegRA(), interp.getDegDEC());
-		printf("\tmagnitude  = %.4f\n", mag);
-		printf("\tdiameter   = %.4f mm \n", diam);
-		printf("\tplatePos   = (%.2f, %.2f) mm\n\n", x, y);
+		printf("\tplateID     = %d\n", p.m_id);
+		printf("\tUTdate      = %s\n", date.c_str());
+		printf("\tjulianDate  = %.4f\n", p.m_julian);
+		printf("\tplateCoord  = (%.4f, %.4f) deg\n", p.m_coords.getDegRA(), p.m_coords.getDegDEC());
+		printf("\tobjectCoord = (%.4f, %.4f) deg\n", interp.getDegRA(), interp.getDegDEC());
+		printf("\tmagnitude   = %.4f\n", mag);
+		printf("\tdiameter    = %.4f mm \n", diam);
+		printf("\tposition    = (%.2f, %.2f) mm\n\n", x, y);
 	}
 	
 	/*
@@ -246,17 +270,22 @@ public:
 		return 23.0;	// default value
 	}
 
-	static int polyDegree(const string& arg, const int argc) {
-		if (argc > 2) {
-			for (int i = 0; i < arg.length(); i++) {
-				if (!isdigit(arg[i])) 
-					return 2;
-			}
-			return stoi(arg);
-		}
-		return 2;
+	/*
+		Converting a gregorian date string from "yymmdd" to "dd/mm/yyyy"
+	*/
+	static string gregorianToString(const string& greg) {
+		int year  = stoi(greg.substr(0,2));
+		int month = stoi(greg.substr(2,2));
+		int day   = stoi(greg.substr(4,2));
+		year += (year < 17) ? 2000 : 1900;
+		string date = "";
+		if (day < 10) date += '0';
+		date += to_string(day) + '/';
+		if (month < 10) date += '0';
+		date += to_string(month) + '/';
+		date += to_string(year);
+		return date;
 	}
-
 };
 
 #endif

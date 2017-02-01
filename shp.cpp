@@ -1,29 +1,63 @@
 #include <iostream>
 #include <chrono>
 #include <math.h>
-#include <iomanip>
 #include <vector>
+//#include <boost/filesystem.hpp>
+#include <experimental/filesystem>
 #include "headers/Ephemeris.h"
 #include "headers/Plate.h"
 using namespace std;
+
+void determineParameters(int argc, char* argv[], string& name, int& num, int& power) {
+	name = "";
+	num = power = 0;
+	for (int i = 1; i < argc; i++) {
+		string param = string(argv[i]);
+		if (param == "help") {
+			cout << "\nOPTIONS:\n";
+			cout << "\t-p  :\tflags the string name of the object you want to load the ephemerides for\n";
+			cout << "\t-t :\tflags the integer number of surrounding ephemerides to use in the interpolation process (>=2)\n";
+			cout << "\t-d :\tflags the integer number of polynomial coefficients to generate for the interpolation (>=0)\n";
+			cout << "\ne.g. : " << argv[0] << " -n ceres -t 10 -p 3\n";
+			cout << "This gives the matching plates for Ceres, using 10 surrounding ephemeris records, using a cubic fit\n\n";
+			exit(1);
+		} else if (param == "-n") {
+			name = argv[i+1];
+			if (!experimental::filesystem::exists("ephemeris/"+name+".txt")) {
+				cout << "ephemeris/" << name << ".txt doesn't exist. Exiting...\n";
+				exit(1);
+			}
+		} else if (param.substr(0,2) == "-t") {
+			num = stoi(argv[i+1]);
+		} else if (param.substr(0,2) == "-p") {
+			power = stoi(argv[i+1]);
+		}
+	}
+
+	// default values
+	if (name == "") name = "mars";
+	if (num == 0)   num = 6;
+	if (power == 0) power = 2;
+}
 
 
 int main(int argc, char* argv[]) {	
 	chrono::time_point<chrono::system_clock> start = chrono::system_clock::now();
 
-	// reading all the relevant info from the plate catalog file and the ephemeris
+	// reading all valid plate records
 	vector<Plate> plates;
 	Plate::readPlateCatalog(plates, "catalog.txt");
 	vector<Ephemeris> eph;
+	
+	// determining the program parameters from command line arguments
+	int degree, numInterp;
 	string objectName;
-	if (argc > 1) objectName = string(argv[1]);
-	else 		  objectName = "mars";
-	double radius;
-	Ephemeris::readEphemerisFile(eph, "ephemeris/"+objectName+".txt", radius);
-	objectName[0] = toupper(objectName[0]);
+	determineParameters(argc, argv, objectName, numInterp, degree);
 
-	// pulling the interpolation polynomial degree, defaulting to 2
-	int degree = Plate::polyDegree(argv[2], argc);
+	// reading all ephemeris records
+	Ephemeris::readEphemerisFile(eph, "ephemeris/"+objectName+".txt");
+	objectName[0] = toupper(objectName[0]);
+	
 
 	// defining the first date in the ephemeris file, for later reference
 	double firstEphDate = eph[0].julian();
@@ -59,12 +93,11 @@ int main(int argc, char* argv[]) {
 		// if the object is within a reasonable angular distance of the plate, do more accurate tests
 		if (angularDistance < 2*distanceThreshold && magnitude <= plates[p].magLimit()) {
 			// interpolating the ephemeris coordinates using the ephemeris records surrounding it
-			int numInterp = 6;
 			vector<Coords> nearbyCoords(numInterp);
 			vector<double> nearbyTimes(numInterp);
 			Ephemeris::findNearbyEphs(eph, numInterp, i, nearbyCoords, nearbyTimes);
 
-			// performing the polynomial least-squares fit using the nearby records
+			// performing the polynomial least-squares fit using the nearby ephemeris records
 			interpedCoords = Coords::polyInterp(nearbyCoords, nearbyTimes, plateDate, degree);
 
 			// recalculating the angular distance to make sure the object is definitely
@@ -99,10 +132,12 @@ int main(int argc, char* argv[]) {
 	}
 
 	// printing a summary of how many plates matched
+	string firstDate = Plate::julianToGregorian(firstEphDate);
+	string lastDate  = Plate::julianToGregorian(eph[eph.size()-1].julian());
 	if (matchCount > 0)
-		cout << matchCount << " matching plates found for " << objectName << "!\n";
+		printf("%d matching plates found for %s between %s and %s\n",matchCount,objectName.c_str(),firstDate.c_str(),lastDate.c_str());
 	else
-		cout << "No matches found for " << objectName << "!\n";
+		printf("No matches found for %s!\n", objectName.c_str());
 
 	// if any playes matched in terms of coordinates, but the object was too faint to show up,
 	// tooFaintCount increments. If this has happened more than once, this bit is printed
@@ -110,17 +145,21 @@ int main(int argc, char* argv[]) {
 		cout << tooFaintCount << (matchCount>0 ? " other" : "") << " plate" << (tooFaintCount==1 ? "" : "s");
 		cout << " matched, but " << (tooFaintCount==1 ? "was" : "were") << " too faint to show up on the plate!\n";
 	}
+	string sign = "th";
+	if 		(degree % 10 == 1) sign = "st";
+	else if (degree % 10 == 2) sign = "nd";
+	else if (degree % 10 == 3) sign = "rd";
+	printf("Used %d surrounding records in a %d%s order polynomial\n", numInterp, degree, sign.c_str());
 
 	// printing the total time taken when running the program	
 	chrono::duration<double> elapsed_seconds = chrono::system_clock::now() - start;
-	printf("\nElapsed time: %.4fs\n\n", elapsed_seconds.count());
+	printf("Elapsed time: %.4fs\n", elapsed_seconds.count());
 }
 
 
-// calculate angular size based on radius, translate to mm size
-	// look for word "radius" or "RAD"
-	// find index of next "=" and the next alphabet char after that
-	// take substr between that and pull double from that
+// maybe add a filter for objects with too smallof a diameter? 
+	// ask what would be a good threshold
+	// add a message at the end to say how many of those were filtered out
 
 // try to incorporate the errors in RA/DEC from the ephemeris somewhere
 	// error propagation through the transformation?
