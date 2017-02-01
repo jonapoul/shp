@@ -14,13 +14,20 @@ int main(int argc, char* argv[]) {
 	// reading all the relevant info from the plate catalog file and the ephemeris
 	vector<Plate> plates;
 	Plate::readPlateCatalog(plates, "catalog.txt");
-	vector<Ephemeris> ephemerides;
+	vector<Ephemeris> eph;
 	string objectName;
-	Ephemeris::readEphemerisFile(ephemerides, "ephemeris.txt", objectName);
+	if (argc > 1) objectName = string(argv[1]);
+	else 		  objectName = "mars";
+	double radius;
+	Ephemeris::readEphemerisFile(eph, "ephemeris/"+objectName+".txt", radius);
+	objectName[0] = toupper(objectName[0]);
+
+	// pulling the interpolation polynomial degree, defaulting to 2
+	int degree = Plate::polyDegree(argv[2], argc);
 
 	// defining the first date in the ephemeris file, for later reference
-	double firstEphDate = ephemerides[0].getJulian();
-	double secondEphDate = ephemerides[1].getJulian();
+	double firstEphDate = eph[0].julian();
+	double secondEphDate = eph[1].julian();
 	double step = secondEphDate - firstEphDate;
 
 	// sqrt(3.2*3.2 + 3.2*3.2) is the minimum circular radius for the object to possibly
@@ -31,34 +38,34 @@ int main(int argc, char* argv[]) {
 
 	// through every plate record
 	for (int p = 0; p < (int)plates.size()-1; p++) {
-		double plateDate  = plates[p].getJulian();
+		double plateDate  = plates[p].julian();
 
 		// i = index of the ephemeris record immediately before the plate date
 		int i 			  = int( (plateDate-firstEphDate)/step );
-		Coords before 	  = ephemerides[i].getCoords();
-		double beforeDate = ephemerides[i].getJulian();
-		Coords after 	  = ephemerides[i+1].getCoords();
-		double afterDate  = ephemerides[i+1].getJulian();
+		Coords before 	  = eph[i].coords();
+		double beforeDate = eph[i].julian();
+		Coords after 	  = eph[i+1].coords();
+		double afterDate  = eph[i+1].julian();
 
-		// initial interpolation
+		// approximate linear interpolation
 		Coords interpedCoords  = Coords::linInterp(before, beforeDate, after, afterDate, plateDate);
-		
+
 		// calculating the angular distance between the linearly interpolated coordinates and
 		// the plate centre
-		Coords plateCoords	   = plates[p].getCoords();
+		Coords plateCoords	   = plates[p].coords();
 		double angularDistance = Coords::angularDistance(interpedCoords, plateCoords);
-		double interpedApMag   = Ephemeris::linInterp(ephemerides[i].getApMag(), beforeDate, ephemerides[i+1].getApMag(), afterDate, plateDate);
+		double magnitude 	   = Ephemeris::linInterp(eph[i].mag(), beforeDate, eph[i+1].mag(), afterDate, plateDate);
 
 		// if the object is within a reasonable angular distance of the plate, do more accurate tests
-		if (angularDistance < 2*distanceThreshold && interpedApMag <= plates[p].getMagLimit()) {
+		if (angularDistance < 2*distanceThreshold && magnitude <= plates[p].magLimit()) {
 			// interpolating the ephemeris coordinates using the ephemeris records surrounding it
-			int numInterp = 10;
+			int numInterp = 6;
 			vector<Coords> nearbyCoords(numInterp);
 			vector<double> nearbyTimes(numInterp);
-			Ephemeris::findNearbyEphs(ephemerides, numInterp, i, nearbyCoords, nearbyTimes);
+			Ephemeris::findNearbyEphs(eph, numInterp, i, nearbyCoords, nearbyTimes);
 
 			// performing the polynomial least-squares fit using the nearby records
-			interpedCoords = Coords::polyInterp(nearbyCoords, nearbyTimes, plateDate, 2);
+			interpedCoords = Coords::polyInterp(nearbyCoords, nearbyTimes, plateDate, degree);
 
 			// recalculating the angular distance to make sure the object is definitely
 			// somewhere on the plate
@@ -80,12 +87,13 @@ int main(int argc, char* argv[]) {
 					double toYAxis = Coords::angularDistance(interpedCoords, fromYAxis);
 					// if the distances are both less than 3.2 degrees, the point will be on the plate
 					if (toXAxis < 3.2 && toYAxis < 3.2) {
-						Plate::printMatch(plates[p], interpedCoords, xi, eta, matchCount+1, interpedApMag, toXAxis, toYAxis);
+						double diameter = Ephemeris::linInterp(eph[i].diam(), beforeDate, eph[i+1].diam(), afterDate, plateDate);
+						Plate::printMatch(plates[p], interpedCoords, xi, eta, matchCount+1, magnitude, toXAxis, toYAxis, diameter);
 						matchCount++;
 					}
 				}
 			}
-		} else if (interpedApMag > plates[p].getMagLimit()) {
+		} else if (magnitude > plates[p].magLimit()) {
 			tooFaintCount++;
 		}
 	}
@@ -103,14 +111,16 @@ int main(int argc, char* argv[]) {
 		cout << " matched, but " << (tooFaintCount==1 ? "was" : "were") << " too faint to show up on the plate!\n";
 	}
 
-	// printing the total time taken when running the program
+	// printing the total time taken when running the program	
 	chrono::duration<double> elapsed_seconds = chrono::system_clock::now() - start;
 	printf("\nElapsed time: %.4fs\n\n", elapsed_seconds.count());
 }
 
 
-// check the new cartesianInterp() with test cases
-	// lu_substitute in polyfit() with id=6590, all others are fine
+// calculate angular size based on radius, translate to mm size
+	// look for word "radius" or "RAD"
+	// find index of next "=" and the next alphabet char after that
+	// take substr between that and pull double from that
 
 // try to incorporate the errors in RA/DEC from the ephemeris somewhere
 	// error propagation through the transformation?

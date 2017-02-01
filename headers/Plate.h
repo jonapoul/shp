@@ -24,12 +24,12 @@ public:
 	Plate(const Plate& p)
 		: m_id(p.m_id), m_coords(p.m_coords), m_gregorian(p.m_gregorian), m_julian(p.m_julian), m_grade(p.m_grade), m_magLimit(p.m_magLimit) { }
 
-	inline int getID() const { return m_id; };
-	inline Coords getCoords() const { return m_coords; };
-	inline string getGregorian() const { return m_gregorian; }
-	inline double getJulian() const { return m_julian; };
-	inline char getGrade() const { return m_grade; };
-	inline double getMagLimit() const { return m_magLimit; }
+	inline int id() const { return m_id; };
+	inline Coords coords() const { return m_coords; };
+	inline string gregorian() const { return m_gregorian; }
+	inline double julian() const { return m_julian; };
+	inline char grade() const { return m_grade; };
+	inline double magLimit() const { return m_magLimit; }
 	inline void setID(const int id) { m_id = id; };
 	inline void setCoords(const Coords& c) { m_coords = c; };
 	inline void setGregorian(const string& g) { m_gregorian = g; }
@@ -184,7 +184,7 @@ public:
 	/*
 		Prints all relevant info about a plate/ephemeris match
 	*/
-	static void printMatch( const Plate& p, const Coords& interp, const double xi, const double eta, const int count, const double mag, const double distanceToXAxis, const double distanceToYAxis) {
+	static void printMatch( const Plate& p, const Coords& interp, const double xi, const double eta, const int count, const double mag, const double distanceToXAxis, const double distanceToYAxis, double diam) {
 		// date conversion from "yymmdd" -> "dd/mm/yyyy"
 		int year  = stoi(p.m_gregorian.substr(0,2));
 		int month = stoi(p.m_gregorian.substr(2,2));
@@ -203,15 +203,19 @@ public:
 		double degreesToMillimetres = 3600.0 / 67.12;
 		x *= degreesToMillimetres;
 		y *= degreesToMillimetres;
+		
+		// converting the angular diameter to an approximate mm diameter
+		diam = (diam / 3600.0) * degreesToMillimetres;
 
 		printf("%03d", count);
-		printf("\tplateID    = %5d\n", p.m_id);
+		printf("\tplateID    = %d\n", p.m_id);
 		printf("\tdate       = %s\n", date.c_str());
 		printf("\tJulianDate = %.4f\n", p.m_julian);
-		printf("\tplateCoord = (%8.4f, %8.4f) deg\n", p.m_coords.getDegRA(),p.m_coords.getDegDEC());
-		printf("\tephemCoord = (%8.4f, %8.4f) deg\n", interp.getDegRA(), interp.getDegDEC());
-		printf("\tmagnitude  =%9.4f\n", mag);
-		printf("\tplatePos   = (%6.2f, %6.2f) mm\n\n", x, y);
+		printf("\tplateCoord = (%.4f, %.4f) deg\n", p.m_coords.getDegRA(), p.m_coords.getDegDEC());
+		printf("\tephemCoord = (%.4f, %.4f) deg\n", interp.getDegRA(), interp.getDegDEC());
+		printf("\tmagnitude  = %.4f\n", mag);
+		printf("\tdiameter   = %.4f mm \n", diam);
+		printf("\tplatePos   = (%.2f, %.2f) mm\n\n", x, y);
 	}
 	
 	/*
@@ -239,8 +243,18 @@ public:
 			else
 				return 22.5;
 		}
-		else
-			return 23.0;
+		return 23.0;	// default value
+	}
+
+	static int polyDegree(const string& arg, const int argc) {
+		if (argc > 2) {
+			for (int i = 0; i < arg.length(); i++) {
+				if (!isdigit(arg[i])) 
+					return 2;
+			}
+			return stoi(arg);
+		}
+		return 2;
 	}
 
 };

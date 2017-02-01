@@ -15,29 +15,31 @@ private:
 	double m_day;		// time in Julian days
 	Coords m_coords;	// RA/DEC coordinates
 	double m_lst;		// Apparent Local Sidereal Time from the observing point
-	float m_mag;		// Apparent magnitude of the object in the sky
+	double m_mag;		// Apparent magnitude of the object in the sky
+	double m_diam;		// Angular diameter of the object in the sky
 	double m_dRA;		// 3sigma error in RA in arcseconds
 	double m_dDEC;		// 3sigma error in DEC in arcseconds
 
 public:
-	Ephemeris(float day=0.0, Coords c={}, double lst=0.0, float mag=0.0, double dra=0.0, double ddec=0.0)
-		: m_day(day), m_coords(c), m_lst(lst), m_mag(mag), m_dRA(dra), m_dDEC(ddec) { }
+	Ephemeris(float day=0.0, Coords c={}, double lst=0.0, double mag=0.0, double diam=0.0, double dra=0.0, double ddec=0.0)
+		: m_day(day), m_coords(c), m_lst(lst), m_mag(mag), m_diam(diam), m_dRA(dra), m_dDEC(ddec) { }
 	Ephemeris(const Ephemeris& e)
-		: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), m_mag(e.m_mag), m_dRA(e.m_dRA), 
-		  m_dDEC(e.m_dDEC) { }
+		: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), m_mag(e.m_mag), m_diam(e.m_diam), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
 
-	inline double getJulian() const { return m_day; };
-	inline Coords getCoords() const { return m_coords; };
-	inline double getLST()	const { return m_lst; };
-	inline float getApMag() const { return m_mag; };
-	inline double getErrorRA() const { return m_dRA; };
-	inline double getErrorDEC() const { return m_dDEC; };
-	inline void setJulian(const double d) { m_day = d; };
-	inline void setCoords(const Coords& c) { m_coords = c; };
-	inline void setApLST(const double lst) { m_lst = lst; };
-	inline void setApMag(const float mag) { m_mag = mag; };
-	inline void setErrorRA(const double dra) { m_dRA = dra; };
-	inline void setErrorDEC(const double ddec) { m_dDEC = ddec; };
+	inline double julian() const { return m_day; }
+	inline Coords coords() const { return m_coords; }
+	inline double lst()	const { return m_lst; }
+	inline double mag() const { return m_mag; }
+	inline double diam() const { return m_diam; }
+	inline double dRA() const { return m_dRA; }
+	inline double dDEC() const { return m_dDEC; }
+	inline void setJulian(const double d) { m_day = d; }
+	inline void setCoords(const Coords& c) { m_coords = c; }
+	inline void setLST(const double lst) { m_lst = lst; }
+	inline void setMag(const float mag) { m_mag = mag; }
+	inline void setDiam(const double diam) { m_diam = diam; }
+	inline void setdRA(const double dra) { m_dRA = dra; }
+	inline void setdDEC(const double ddec) { m_dDEC = ddec; }
 
 	/*
 		Takes a full ephemeris record string and pulls the info from it, such as julian day, 
@@ -49,14 +51,14 @@ public:
 		stringstream ss(s2);
 		string temp, dRA_str, dDEC_str;
 		double ra, dec;
-		ss >> m_day >> ra >> dec >> m_lst >> m_mag >> temp >> dRA_str >> dDEC_str;
-		
+		ss >> m_day >> ra >> dec >> m_lst >> m_mag >> temp >> m_diam >> dRA_str >> dDEC_str;
+
 		// converting the two double values (in degrees) to full RA/DEC objects
 		m_coords = Coords(ra, dec);
 
 		// checking whether the errors in RA/DEC are valid
-		m_dRA  = (dRA_str  == "n.a.") ? 0.f : stod(dRA_str);
-		m_dDEC = (dDEC_str == "n.a.") ? 0.f : stod(dDEC_str);
+		m_dRA  = (dRA_str  == "n.a.") ? 0.0 : stod(dRA_str);
+		m_dDEC = (dDEC_str == "n.a.") ? 0.0 : stod(dDEC_str);
 		return true;
 	}
 
@@ -69,6 +71,7 @@ public:
 		printf("DEC = %8.4f ", m_coords.getDegDEC());
 		printf("LST = %7.4f ", m_lst);
 		printf("ApMag = %5.2f ", m_mag);
+		printf("Diam = %.5f ", m_diam);
 		printf("dRA = %.4f ", m_dRA);
 		printf("dDEC = %.4f\n", m_dDEC);
 	}
@@ -78,23 +81,22 @@ public:
 		a vector of Ephemeris objects. The $$SOE and $$EOE tags signify the start and end of the 
 		data lines.
 	*/
-	static void readEphemerisFile(vector<Ephemeris>& ephemerides, const string& filename, string& object) {
+	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename, double& radius) {
 		ifstream ephemerisFile(filename);
 		if (ephemerisFile.is_open()) {
 			bool canReadEntries = false;
 			while (!ephemerisFile.eof()) {
 				string buffer;
 				getline(ephemerisFile, buffer);
-				if (!canReadEntries && buffer.substr(1,7) == "Revised") {
-					object = buffer.substr(24, 40);
-					boost::algorithm::trim(object);
-				}
 				if (buffer == "$$EOE") 
 					break;
 				if (canReadEntries) {
 					Ephemeris e;
-					if (e.parseEphemerisString(buffer))
-						ephemerides.push_back(e);
+					if (e.parseEphemerisString(buffer)) {
+						eph.push_back(e);
+						// for some reason the diamater isnt being transferred to the vector without this line???
+						eph[eph.size()-1].m_diam = e.m_diam;
+					}
 				}
 				if (buffer == "$$SOE") 
 					canReadEntries = true;
@@ -111,8 +113,7 @@ public:
 		Linearly interpolates a floating point number between two points
 		Intended for apparent magnitude estimation, but can be used for anything else
 	*/
-	static double linInterp(const double mag0, const double t0, const double mag1, 
-							const double t1, const double t) {
+	static double linInterp(const double mag0, const double t0, const double mag1, const double t1, const double t) {
 		return mag0 + (t-t0)*(mag1-mag0)/(t1-t0);
 	}
 
@@ -132,10 +133,11 @@ public:
 		int shift = (numCoords % 2 == 1) ? numCoords/2 : (numCoords-1)/2;
 		int diff = (i-shift < 0) ? shift-i : 0;
 		for (int j = 0; j < numCoords; j++) {
-			c[j] = e[i-shift+j+diff].getCoords();
-			t[j] = e[i-shift+j+diff].getJulian();
+			c[j] = e[i-shift+j+diff].coords();
+			t[j] = e[i-shift+j+diff].julian();
 		}
 	}
+
 };
 
 #endif
