@@ -23,7 +23,7 @@ private:
 	double m_dDEC;		// 3sigma error in DEC in arcseconds
 
 public:
-	Ephemeris(float day=0.0, Coords c={}, double lst=0.0, double mag=0.0, double dra=0.0, double ddec=0.0)
+	Ephemeris(double day=0.0, Coords c={}, double lst=0.0, double mag=0.0, double dra=0.0, double ddec=0.0)
 		: m_day(day), m_coords(c), m_lst(lst), m_mag(mag), m_dRA(dra), m_dDEC(ddec) { }
 	Ephemeris(const Ephemeris& e)
 		: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), m_mag(e.m_mag), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
@@ -37,7 +37,7 @@ public:
 	inline void setJulian(const double d) { m_day = d; }
 	inline void setCoords(const Coords& c) { m_coords = c; }
 	inline void setLST(const double lst) { m_lst = lst; }
-	inline void setMag(const float mag) { m_mag = mag; }
+	inline void setMag(const double mag) { m_mag = mag; }
 	inline void setdRA(const double dra) { m_dRA = dra; }
 	inline void setdDEC(const double ddec) { m_dDEC = ddec; }
 
@@ -208,6 +208,8 @@ public:
 		if (name  == "") name  = "ceres";
 		if (num   == 0)  num   = 20;
 		if (power == 0)  power = 20;
+
+		if (power > num) num = power;
 	}
 
 	static void printFiles() {

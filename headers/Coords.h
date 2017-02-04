@@ -53,17 +53,17 @@ public:
 		Takes a plate catalog record string and pulls the RA/DEC coordinates from it
 	*/
 	void parseCoordsFromPlate(const string& record) {
-		int hour = stoi(record.substr(20,2));
-		int mins = stoi(record.substr(22,2));
-		int secs = stoi(record.substr(24,1)) * 6.0;
+		double hour = stod(record.substr(20,2));
+		double mins = stod(record.substr(22,2));
+		double secs = stod(record.substr(24,1)) * 6.0;
 		m_degRA = hour*15.0 + mins/4.0 + secs/240.0;
 		m_radRA = m_degRA * degToRad;
 
-		int degrees = stoi(record.substr(26,2));
-		int arcmins = stoi(record.substr(28,2));
-		int arcsecs = 0;
+		double degrees = stod(record.substr(26,2));
+		double arcmins = stod(record.substr(28,2));
+		double arcsecs = 0.0;
 		bool isPositive = (record[25] != '-');
-		m_degDEC = degrees + arcmins/60.0;
+		m_degDEC = degrees + arcmins/60.0 + arcsecs/3600.0;
 		m_degDEC *= (isPositive ? 1.0 : -1.0);
 		m_radDEC = m_degDEC * degToRad;
 	}

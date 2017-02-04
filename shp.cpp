@@ -29,9 +29,7 @@ int main(int argc, char* argv[]) {
 	double secondEphDate = eph[1].julian();
 	double step = secondEphDate - firstEphDate;
 
-	// sqrt(3.2*3.2 + 3.2*3.2) is the minimum circular radius for the object to possibly
-	// be on the plate. This is used as a first check before performing a polynomial fit
-	// to get more accurate, to save processing time
+	// sqrt(3.2*3.2 + 3.2*3.2) is the minimum circular radius for the object to possibly be on the plate. This is used as a first check before performing a polynomial fit to get more accurate, to save processing time
 	double distanceThreshold = sqrt(2*3.2*3.2);
 	int matchCount = 0, tooFaintCount = 0;
 	int loopLimit = int(plates.size() - 1);
@@ -42,7 +40,7 @@ int main(int argc, char* argv[]) {
 
 		// i = index of the ephemeris record immediately before the plate date
 		int i = int( (plateDate-firstEphDate)/step );
-		if (i < 0) 
+		if (i < 0) 	// this happens if the first ephemeris record is after the first plate
 			continue;
 		Coords before 	  = eph[i].coords();
 		double beforeDate = eph[i].julian();
@@ -52,8 +50,7 @@ int main(int argc, char* argv[]) {
 		// approximate linear interpolation
 		Coords interpedCoords  = Coords::linInterp(before, beforeDate, after, afterDate, plateDate);
 
-		// calculating the angular distance between the linearly interpolated coordinates and
-		// the plate centre
+		// calculating the angular distance between the interpolated coordinates and the plate centre
 		Coords plateCoords	   = plates[p].coords();
 		double angularDistance = Coords::angularDistance(interpedCoords, plateCoords);
 		double magnitude 	   = Ephemeris::linInterp(eph[i].mag(), beforeDate, eph[i+1].mag(), afterDate, plateDate);
@@ -69,14 +66,12 @@ int main(int argc, char* argv[]) {
 			// performing the polynomial least-squares fit using the nearby ephemeris records
 			interpedCoords = Coords::polyInterp(nearbyCoords, nearbyTimes, plateDate, degree);
 
-			// recalculating the angular distance to make sure the object is definitely
-			// somewhere on the plate
+			// recalculating the angular distance to make sure the object is definitely somewhere on the plate
 			angularDistance = Coords::angularDistance(interpedCoords, plateCoords);
 			if (angularDistance < distanceThreshold) {
 				double xi, eta;
 				int status;
-				// calculate the x/y coordinates of the interpolated point, with the plate centre used as
-				// the tangent point for the projection
+				// calculate the x/y coordinates of the interpolated point, with the plate centre used as the tangent point for the projection
 				Coords::gnomonic(interpedCoords, plateCoords, xi, eta, status);
 				// if the transformation went ok
 				if (status == 0) {
@@ -111,8 +106,7 @@ int main(int argc, char* argv[]) {
 	else
 		printf("No matches found for %s!\n", objectName.c_str());
 
-	// if any playes matched in terms of coordinates, but the object was too faint to show up,
-	// tooFaintCount increments. If this has happened more than once, this bit is printed
+	// if any playes matched in terms of coordinates, but the object was too faint to show up, tooFaintCount increments. If this has happened more than once, this bit is printed
 	if (tooFaintCount > 0) {
 		cout << tooFaintCount << (matchCount>0 ? " other" : "") << " plate" << (tooFaintCount==1 ? "" : "s");
 		cout << " matched, but " << (tooFaintCount==1 ? "was" : "were") << " too faint to show up on the plate!\n";

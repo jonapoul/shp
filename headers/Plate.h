@@ -111,7 +111,7 @@ public:
 		int hour  = stoi(lst.substr(0, 2));
 		int mins  = stoi(lst.substr(2, 2));
 
-		double julian = gregorianToJulian(float(day), month, year);
+		double julian = gregorianToJulian(double(day), month, year);
 		double gst = LSTtoGST(hour, mins, 0.0, 149.07);
 		double ut = GSTtoUT(gst, julian);
 		double frac = (ut - 12.0) / 24.0;
@@ -123,7 +123,7 @@ public:
 	/*
 		Converts a UT Gregorian date to a floating point Julian date
 	*/
-	static double gregorianToJulian(float day, int month, int year) {
+	static double gregorianToJulian(double day, int month, int year) {
 		if (month < 3) { 
 			year--; 
 			month += 12; 
@@ -174,7 +174,7 @@ public:
 	/*
 		Takes the LST at Siding Springs observatory and returns the Greenwich Sidereal Time
 	*/
-	static double LSTtoGST(const int hour, const int min, const float sec, const float longitude) {
+	static double LSTtoGST(const int hour, const int min, const double sec, const double longitude) {
 		double lstF = hour + (min/60.0) + (sec/3600.0);
 		double longHour = longitude/15.0; 	// in hours
 		double gst = lstF - longHour;
