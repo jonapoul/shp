@@ -53,9 +53,9 @@ public:
 		Takes a plate catalog record string and pulls the RA/DEC coordinates from it
 	*/
 	void parseCoordsFromPlate(const string& record) {
-		int hour =	stoi(record.substr(20,2));
-		int mins =	stoi(record.substr(22,2));
-		int secs =	stoi(record.substr(24,1)) * 6.0;
+		int hour = stoi(record.substr(20,2));
+		int mins = stoi(record.substr(22,2));
+		int secs = stoi(record.substr(24,1)) * 6.0;
 		m_degRA = hour*15.0 + mins/4.0 + secs/240.0;
 		m_radRA = m_degRA * degToRad;
 
@@ -63,7 +63,7 @@ public:
 		int arcmins = stoi(record.substr(28,2));
 		int arcsecs = 0;
 		bool isPositive = (record[25] != '-');
-		m_degDEC = degrees + arcmins/600.0;
+		m_degDEC = degrees + arcmins/60.0;
 		m_degDEC *= (isPositive ? 1.0 : -1.0);
 		m_radDEC = m_degDEC * degToRad;
 	}
@@ -111,6 +111,15 @@ public:
 		int s = int(decimal * 60.0);
 		if (s < 10) output += '0';
 		output += to_string(s) + '\"';
+		return output;
+	}
+
+	/*
+		Returns the ra/dec of the coordinates as a string (in decimal degrees)
+	*/
+	string toString() const {
+		string output = to_string(m_degRA);
+		output += ", " + to_string(m_degDEC);
 		return output;
 	}
 
@@ -267,9 +276,8 @@ public:
 			exit(1);
 		}
 		vector<double> x(size), y(size), z(size);
-		for (size_t i = 0; i < size; i++) {
+		for (size_t i = 0; i < size; i++)
 			toCartesian(coords[i], x[i], y[i], z[i]);
-		}
 
 		// quadratic fit, I would maybe do more but I'd lose precision in the julian dates
 		vector<double> xCoeff = polyfit(time, x, degree);
@@ -340,6 +348,10 @@ public:
 		return std::vector<T>( oXtYMatrix.data().begin(), oXtYMatrix.data().end() );
 	}
 
+	/*
+		Calculates the y-value of a point y = a0 + a1*x + a2*x^2 ... ai*x^i
+		Given a vector of coefficients 'a' and an x coordinate to calculate for
+	*/
 	template<typename T>
 	static T polyvalue(const vector<T>& coeff, const T x) {
 		T y = 0.0;
@@ -348,25 +360,6 @@ public:
 		}
 		return y;
 	}
-
-	friend Coords operator+(const Coords& c1, const Coords& c2);
 };
-
-Coords operator+(const Coords& c1, const Coords& c2) {
-	double ra  = c1.m_degRA  + c2.m_degRA;
-	double dec = c1.m_degDEC + c2.m_degDEC;
-	
-	if (ra > 360.0)    ra -= 360.0;
-	else if (ra < 0.0) ra += 360.0;
-
-	if (dec > 90.0) {
-		dec = 180.0 - dec;
-		ra  = 360.0 - ra;
-	} else if (dec < -90.0) {
-		dec = -180.0 - dec;
-		ra  = 360.0 - ra;
-	}
-	return Coords(ra, dec);
-}
 
 #endif
