@@ -238,20 +238,187 @@ public:
 		double dx = end.first  - start.first;
 		double dy = end.second - start.second;
 		double drift = sqrt(dx*dx + dy*dy);
+		Coords c = p.coords();
 
 		printf("%03d", count);
-		printf("\tid       = %d\n", p.m_id);
-		printf("\tdate     = %s\n", gregorianToString(p.m_gregorian).c_str());
-		printf("\tjulian   = %.3f\n", p.m_julian);
-		printf("\tcoords   = (%.3f, %.3f) deg\n", interp.getDegRA(), interp.getDegDEC());
-		printf("\tstartPos = (%.2f, %.2f) mm\n", start.first, start.second);
-		printf("\tmidPos   = (%.2f, %.2f) mm\n", x, y);
-		printf("\tfinalPos = (%.2f, %.2f) mm\n", end.first, end.second);
-		printf("\tdrift    = %.2f mm\n", drift);
-		printf("\tmagnitude= %.2f\n", mag);
-		printf("\tgrade    = %c\n", p.m_grade);
-		printf("\texposure = %.1f mins\n", p.m_exp*14400);
-		printf("-----------------------------------------\n");
+		printf("\tplate ID       = %d\n", p.m_id);
+		printf("\tUT date        = %s\n", gregorianToString(p.m_gregorian).c_str());
+		printf("\tJulian date    = %.3f\n", p.m_julian);
+		printf("\tObject Coords  = (%.3f, %.3f) deg\n", interp.getDegRA(), interp.getDegDEC());
+		printf("\tPlate Coords   = (%.3f, %.3f) deg\n", c.getDegRA(), c.getDegDEC());
+		printf("\tStart Position = (%.2f, %.2f) mm\n", start.first, start.second);
+		printf("\tMid Position   = (%.2f, %.2f) mm\n", x, y);
+		printf("\tFinal Position = (%.2f, %.2f) mm\n", end.first, end.second);
+		printf("\tDrift length   = %.2f mm\n", drift);
+		printf("\tMagnitude      = %.2f\n", mag);
+		printf("\tPlate Grade    = %c\n", p.m_grade);
+		printf("\tExposure       = %.1f mins\n", p.m_exp*14400);
+		printf("--------------------------------------------------\n");
+	}
+
+	/*
+		Goes through all matched plates and prints the relevant info about them all
+		This is a LITTLE BIT OF A MESS but it works
+	*/
+	static void printMatches(const vector<Plate>& p, const vector<Coords>& c, const vector<int>& count, const vector<double>& mag, const vector<pair<double,double>>& start, const vector<pair<double,double>>& mid, const vector<pair<double,double>>& end) {
+		
+		double degreesToMillimetres = 3600.0 / 67.12;
+		double radsToDegs = 180.0 / M_PI;
+		vector<pair<double,double>> middle;
+		for (auto m : mid) {
+			double x = (m.first  * degreesToMillimetres * radsToDegs) + (354.5/2.0);
+			double y = (m.second * degreesToMillimetres * radsToDegs) + (354.5/2.0);
+			middle.push_back({x, y});
+		}
+
+		for (int i = 0; i < int(p.size()); i += 2) {
+			if (p.size() % 2 == 1 && i == p.size() - 1) {
+				printf("%03d", count[i]);
+				printf("\tplate ID       = %d\n", p[i].id());
+				printf("\tUT date        = %s\n", gregorianToString(p[i].gregorian()).c_str());
+				printf("\tJulian date    = %.3f\n", p[i].julian());
+				printf("\tPlate Coords   = (%.3f, %.3f) deg\n", p[i].coords().getDegRA(), p[i].coords().getDegDEC());
+				printf("\tObject Coords  = (%.3f, %.3f) deg\n", c[i].getDegRA(), c[i].getDegDEC());
+				printf("\tStart Position = (%.2f, %.2f) mm\n", start[i].first, start[i].second);
+				printf("\tMid Position   = (%.2f, %.2f) mm\n", middle[i].first, middle[i].second);
+				printf("\tFinal Position = (%.2f, %.2f) mm\n", end[i].first, end[i].second);
+				double dx = end[i].first  - start[i].first;
+				double dy = end[i].second - start[i].second;
+				double drift = sqrt(dx*dx + dy*dy);
+				printf("\tDrift length   = %.2f mm\n", drift);
+				printf("\tMagnitude      = %.2f\n", mag[i]);
+				printf("\tPlate Grade    = %c\n", p[i].grade());
+				printf("\tExposure       = %.1f mins\n", p[i].exposure()*14400);
+				printf("--------------------------------------------------\n");
+			}
+			else {
+				stringstream ss;
+				char buffer0[50], buffer01[50], buffer1[50], buffer2[50];
+				sprintf(buffer0, "%03d", count[i]);
+				sprintf(buffer01, "%03d", count[i+1]);
+				sprintf(buffer1, "\tplate ID       = %d", p[i].id());
+				sprintf(buffer2, "\tplate ID       = %d", p[i+1].id());
+				ss << buffer0 << buffer1;
+				size_t length = 50-ss.str().length();
+				ss << string(length+3, ' ');
+				ss << "| " << buffer01 << buffer2 << '\n';
+				cout << ss.str();
+				ss.str("");
+
+				ss << "\tUT date        = " << gregorianToString(p[i].gregorian());
+				length = 50-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << "\tUT date        = " << gregorianToString(p[i+1].gregorian()) << '\n';
+				cout << ss.str();
+				ss.str("");
+
+				char buffer3[50], buffer4[50];
+				sprintf(buffer3, "\tJulian date    = %.3f", p[i].julian());
+				sprintf(buffer4, "\tJulian date    = %.3f", p[i+1].julian());
+				ss << buffer3;
+				length = 50-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer4 << '\n';
+				cout << ss.str();
+				ss.str("");
+				
+				char buffer5[50], buffer6[50];
+				sprintf(buffer5, "\tPlate Coords   = (%.3f, %.3f) deg", p[i].coords().getDegRA(), p[i].coords().getDegDEC());
+				sprintf(buffer6, "\tPlate Coords   = (%.3f, %.3f) deg", p[i+1].coords().getDegRA(), p[i+1].coords().getDegDEC());
+				ss << buffer5;
+				length = 50-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer6 << '\n';
+				cout << ss.str();
+				ss.str("");
+
+				char buffer7[50], buffer8[50];
+				sprintf(buffer7, "\tObject Coords  = (%.3f, %.3f) deg", c[i].getDegRA(), c[i].getDegDEC());
+				sprintf(buffer8, "\tObject Coords  = (%.3f, %.3f) deg", c[i+1].getDegRA(), c[i+1].getDegDEC());
+				ss << buffer7;
+				length = 50-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer8 << '\n';
+				cout << ss.str();
+				ss.str("");
+
+				char buffer9[50], buffer10[50];
+				sprintf(buffer9, "\tStart Position = (%.2f, %.2f) mm", start[i].first, start[i].second);
+				sprintf(buffer10, "\tStart Position = (%.2f, %.2f) mm", start[i+1].first, start[i+1].second);
+				ss << buffer9;
+				length = 50-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer10 << '\n';
+				cout << ss.str();
+				ss.str("");
+
+				char buffer11[50], buffer12[50];
+				sprintf(buffer11, "\tMid Position   = (%.2f, %.2f) mm", middle[i].first, middle[i].second);
+				sprintf(buffer12, "\tMid Position   = (%.2f, %.2f) mm", middle[i+1].first, middle[i+1].second);
+				ss << buffer11;
+				length = 50-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer12 << '\n';
+				cout << ss.str();
+				ss.str("");
+
+				char buffer13[50], buffer14[50];
+				sprintf(buffer13, "\tFinal Position = (%.2f, %.2f) mm", end[i].first, end[i].second);
+				sprintf(buffer14, "\tFinal Position = (%.2f, %.2f) mm", end[i+1].first, end[i+1].second);
+				ss << buffer13;
+				length = 50-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer14 << '\n';
+				cout << ss.str();
+				ss.str("");
+
+				char buffer15[50], buffer16[50];
+				double dx = end[i].first  - start[i].first;
+				double dy = end[i].second - start[i].second;
+				double drift = sqrt(dx*dx + dy*dy);
+				sprintf(buffer15, "\tDrift length   = %.2f mm", drift);
+				dx = end[i].first  - start[i].first;
+				dy = end[i].second - start[i].second;
+				drift = sqrt(dx*dx + dy*dy);
+				sprintf(buffer16, "\tDrift length   = %.2f mm", drift);
+				ss << buffer15;
+				length = 50-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer16 << '\n';
+				cout << ss.str();
+				ss.str("");
+
+				char buffer17[50], buffer18[50];
+				sprintf(buffer17, "\tMagnitude      = %.2f", mag[i]);
+				sprintf(buffer18, "\tMagnitude      = %.2f", mag[i+1]);
+				ss << buffer17;
+				length = 50-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer18 << '\n';
+				cout << ss.str();
+				ss.str("");
+
+				ss << "\tPlate Grade    = " << p[i].grade();
+				length = 50-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| \tPlate Grade    = " << p[i+1].grade() << '\n';
+				cout << ss.str();
+				ss.str("");
+
+				char buffer19[50], buffer20[50];
+				sprintf(buffer19, "\tExposure       = %.1f mins", p[i].exposure()*14400);
+				sprintf(buffer20, "\tExposure       = %.1f mins", p[i+1].exposure()*14400);
+				ss << buffer19;
+				length = 50-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer20 << '\n';
+				cout << ss.str();
+				ss.str("");
+
+				cout << string(120, '-') << '\n';
+			}
+		}
+		return;
 	}
 	
 	/*

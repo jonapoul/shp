@@ -131,8 +131,7 @@ public:
 
 		Used to find x/y values for polynomial least-squares fitting.
 	*/
-	static void findNearbyEphs(const vector<Ephemeris>& e, const int numCoords, const int i,
-								vector<Coords>& c, vector<double>& t) {
+	static void findNearbyEphs(const vector<Ephemeris>& e, const int numCoords, const int i, vector<Coords>& c, vector<double>& t) {
 		size_t N = e.size();
 		if (i > N) {
 			cout << "Error in Ephemeris::findNearbyCoords(): index " << i << " > vector size " << N << ".\n";
@@ -206,7 +205,7 @@ public:
 		}
 		// default values
 		if (name  == "") name  = "ceres";
-		if (num   == 0)  num   = 20;
+		if (num   == 0)  num   = 30;
 		if (power == 0)  power = 20;
 
 		if (power > num) num = power;
@@ -216,7 +215,7 @@ public:
 		fs::path ephPath = "./ephemeris/";
 		fs::directory_iterator end;
 		vector<string> files;
-		for (fs::directory_iterator itr(ephPath); itr != end; ++itr) {
+		for (fs::directory_iterator itr(ephPath); itr != end; itr++) {
 			if (is_regular_file(itr->path()))
 				files.push_back(itr->path().stem().string());
 		}

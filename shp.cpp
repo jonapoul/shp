@@ -29,10 +29,16 @@ int main(int argc, char* argv[]) {
 	double secondEphDate = eph[1].julian();
 	double step = secondEphDate - firstEphDate;
 
-	// sqrt(3.2*3.2 + 3.2*3.2) is the minimum circular radius for the object to possibly be on the plate. This is used as a first check before performing a polynomial fit to get more accurate, to save processing time
+	// sqrt(3.2*3.2 + 3.2*3.2) is the minimum circular radius for the object to possibly be on the plate. This is used as a first check before performing a polynomial fit, to save processing time
 	double distanceThreshold = sqrt(2*3.2*3.2);
 	int matchCount = 0, tooFaintCount = 0;
-	int loopLimit = int(plates.size() - 1);
+	int loopLimit = plates.size() - 1;
+
+	vector<Plate> matchPlates;
+	vector<Coords> matchCoords;
+	vector<int> matchCounts;
+	vector<double> matchMags;
+	vector<pair<double,double>> matchStart, matchMid, matchEnd;
 
 	// through every plate record
 	for (int p = 0; p < loopLimit; p++) {
@@ -87,7 +93,15 @@ int main(int argc, char* argv[]) {
 						// calculating the xi/eta coords of the points at the start and end of the exposure
 						pair<double,double> start, end, mid(xi, eta);
 						Plate::exposureBoundaries(plates[p], nearbyCoords, nearbyTimes, degree, start, end);
-						Plate::printMatch(plates[p], interpedCoords, ++matchCount, magnitude, start, mid, end);
+
+						// adding the relevant values to arrays to be printed at the end
+						matchPlates.push_back(plates[p]);
+						matchCoords.push_back(interpedCoords);
+						matchCounts.push_back(++matchCount);
+						matchMags.push_back(magnitude);
+						matchStart.push_back(start);
+						matchMid.push_back(mid);
+						matchEnd.push_back(end);
 					}
 				}
 			}
@@ -97,6 +111,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	// printing a summary of how many plates matched
+	Plate::printMatches(matchPlates, matchCoords, matchCounts, matchMags, matchStart, matchMid, matchEnd);
 	string firstDate = Plate::julianToGregorian(firstEphDate);
 	string lastDate  = Plate::julianToGregorian(eph[eph.size()-1].julian());
 	if (matchCount > 0) {
