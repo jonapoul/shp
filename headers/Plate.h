@@ -95,6 +95,16 @@ public:
 		printf("Grade = \'%c\'\n", m_grade);
 	}	
 
+	/*
+		Checks whether the plate is missing from the plate archive room
+	*/
+	static bool plateIsMissing(const Plate& p, const vector<int>& blacklist) {
+		for (int id : blacklist) {
+			if (p.id() == id) return true;
+		}
+		return false;
+	}
+
 	/* 
 		Takes in a 6-char date string, in the format "yymmdd", outputs a Julian date as a double.
 		This assumes that all dates are between 1st Jan 1917 and 31st Dec 2016, which is fine for
@@ -114,7 +124,7 @@ public:
 		double julian = gregorianToJulian(double(day), month, year);
 		double gst = LSTtoGST(hour, mins, 0.0, 149.07);
 		double ut = GSTtoUT(gst, julian);
-		double frac = (ut - 12.0) / 24.0;
+		double frac = (ut) / 24.0;
 		julian += frac;
 
 		return julian;
@@ -266,8 +276,8 @@ public:
 		double radsToDegs = 180.0 / M_PI;
 		vector<pair<double,double>> middle;
 		for (auto m : mid) {
-			double x = (m.first  * degreesToMillimetres * radsToDegs) + (354.5/2.0);
-			double y = (m.second * degreesToMillimetres * radsToDegs) + (354.5/2.0);
+			double x = (m.first  * degreesToMillimetres * radsToDegs) + (355/2.0);
+			double y = (m.second * degreesToMillimetres * radsToDegs) + (355/2.0);
 			middle.push_back({x, y});
 		}
 
@@ -279,9 +289,7 @@ public:
 				printf("\tJulian date    = %.3f\n", p[i].julian());
 				printf("\tPlate Coords   = (%.3f, %.3f) deg\n", p[i].coords().getDegRA(), p[i].coords().getDegDEC());
 				printf("\tObject Coords  = (%.3f, %.3f) deg\n", c[i].getDegRA(), c[i].getDegDEC());
-				printf("\tStart Position = (%.2f, %.2f) mm\n", start[i].first, start[i].second);
-				printf("\tMid Position   = (%.2f, %.2f) mm\n", middle[i].first, middle[i].second);
-				printf("\tFinal Position = (%.2f, %.2f) mm\n", end[i].first, end[i].second);
+				printf("\tPlate Position = (%.3f, %.3f) mm\n", middle[i].first, middle[i].second);
 				double dx = end[i].first  - start[i].first;
 				double dy = end[i].second - start[i].second;
 				double drift = sqrt(dx*dx + dy*dy);
@@ -289,7 +297,7 @@ public:
 				printf("\tMagnitude      = %.2f\n", mag[i]);
 				printf("\tPlate Grade    = %c\n", p[i].grade());
 				printf("\tExposure       = %.1f mins\n", p[i].exposure()*14400);
-				printf("--------------------------------------------------\n");
+				printf("---------------------------------------------------------\n");
 			}
 			else {
 				stringstream ss;
@@ -342,33 +350,13 @@ public:
 				cout << ss.str();
 				ss.str("");
 
-				char buffer9[50], buffer10[50];
-				sprintf(buffer9, "\tStart Position = (%.2f, %.2f) mm", start[i].first, start[i].second);
-				sprintf(buffer10, "\tStart Position = (%.2f, %.2f) mm", start[i+1].first, start[i+1].second);
-				ss << buffer9;
-				length = 50-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << buffer10 << '\n';
-				cout << ss.str();
-				ss.str("");
-
 				char buffer11[50], buffer12[50];
-				sprintf(buffer11, "\tMid Position   = (%.2f, %.2f) mm", middle[i].first, middle[i].second);
-				sprintf(buffer12, "\tMid Position   = (%.2f, %.2f) mm", middle[i+1].first, middle[i+1].second);
+				sprintf(buffer11, "\tPlate Position = (%.3f, %.3f) mm", middle[i].first, middle[i].second);
+				sprintf(buffer12, "\tPlate Position = (%.3f, %.3f) mm", middle[i+1].first, middle[i+1].second);
 				ss << buffer11;
 				length = 50-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| " << buffer12 << '\n';
-				cout << ss.str();
-				ss.str("");
-
-				char buffer13[50], buffer14[50];
-				sprintf(buffer13, "\tFinal Position = (%.2f, %.2f) mm", end[i].first, end[i].second);
-				sprintf(buffer14, "\tFinal Position = (%.2f, %.2f) mm", end[i+1].first, end[i+1].second);
-				ss << buffer13;
-				length = 50-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << buffer14 << '\n';
 				cout << ss.str();
 				ss.str("");
 

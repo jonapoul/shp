@@ -1,6 +1,5 @@
 #ifndef COORDS_H
 #define COORDS_H
-
 /*
 	This ifdef bit is to silence some Boost errors
 	Robbed from http://www.vilipetek.com/2013/10/07/polynomial-fitting-in-c-using-boost/
@@ -262,13 +261,12 @@ public:
 		Interpolates between an arbitrary number of coordinate/time points using a
 		least-squares fitting process.
 			1) Convert all spherical coordinates (RA, DEC) to 3D cartesian (x, y, z)
-			2) Perform a polynomial fit to a given degree
+			2) Perform a polynomial fit along each axis separately, to a given degree
 			3) Calculate the value of each (x, y, z) value at a time t
 			4) Normalise the cartesian vector so the magnitude is exactly 1
 			5) Convert each set back to RA/DEC
 	*/
-	static Coords polyInterp(const vector<Coords>& coords, const vector<double>& time, 
-							 const double t, const int degree) {
+	static Coords polyInterp(const vector<Coords>& coords, const vector<double>& time, const double t, const int degree) {
 		size_t size = coords.size();
 		if (size != time.size()) {
 			cout << "The two vectors passed to Coords::polyInterp() are different sizes: coords is ";
@@ -279,7 +277,6 @@ public:
 		for (size_t i = 0; i < size; i++)
 			toCartesian(coords[i], x[i], y[i], z[i]);
 
-		// quadratic fit, I would maybe do more but I'd lose precision in the julian dates
 		vector<double> xCoeff = polyfit(time, x, degree);
 		vector<double> yCoeff = polyfit(time, y, degree);
 		vector<double> zCoeff = polyfit(time, z, degree);
@@ -355,9 +352,8 @@ public:
 	template<typename T>
 	static T polyvalue(const vector<T>& coeff, const T x) {
 		T y = 0.0;
-		for (int i = 0; i < (int)coeff.size(); i++) {
+		for (int i = 0; i < (int)coeff.size(); i++)
 			y += coeff[i] * pow(x, i);
-		}
 		return y;
 	}
 };

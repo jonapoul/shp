@@ -197,16 +197,16 @@ public:
 					exit(1);
 				}
 				power = stoi(powStr);
-				if (power < 1) {
-					cout << "-p must be larger than 0. Exiting...\n";
+				if (power < 1 || power > 23) {
+					cout << "-p must be larger than 0 and smaller than 24. Exiting...\n";
 					exit(1);
 				}
 			}
 		}
 		// default values
 		if (name  == "") name  = "ceres";
-		if (num   == 0)  num   = 30;
-		if (power == 0)  power = 20;
+		if (num   == 0)  num   = 10;
+		if (power == 0)  power = 3;
 
 		if (power > num) num = power;
 	}
