@@ -240,8 +240,7 @@ public:
 		3. Normalise each value
 		4. Transform back to spherical polars
 	*/
-	static Coords linInterp(const Coords& c0, const double t0, const Coords& c1, 
-							const double t1, const double t) {
+	static Coords linInterp(const Coords& c0, const double t0, const Coords& c1, const double t1, const double t) {
 		double x0, y0, z0, x1, y1, z1;
 		toCartesian(c0, x0, y0, z0);
 		toCartesian(c1, x1, y1, z1);
@@ -266,7 +265,7 @@ public:
 			4) Normalise the cartesian vector so the magnitude is exactly 1
 			5) Convert each set back to RA/DEC
 	*/
-	static Coords polyInterp(const vector<Coords>& coords, const vector<double>& time, const double t, const int degree) {
+	static Coords polyInterp(const vector<Coords>& coords, const vector<double>& time, const double t, int degree) {
 		size_t size = coords.size();
 		if (size != time.size()) {
 			cout << "The two vectors passed to Coords::polyInterp() are different sizes: coords is ";
@@ -277,9 +276,18 @@ public:
 		for (size_t i = 0; i < size; i++)
 			toCartesian(coords[i], x[i], y[i], z[i]);
 
-		vector<double> xCoeff = polyfit(time, x, degree);
-		vector<double> yCoeff = polyfit(time, y, degree);
-		vector<double> zCoeff = polyfit(time, z, degree);
+		int statusX, statusY, statusZ;
+		vector<double> xCoeff = polyfit(time, x, degree, statusX);
+		vector<double> yCoeff = polyfit(time, y, degree, statusY);
+		vector<double> zCoeff = polyfit(time, z, degree, statusZ);
+
+		while (statusX != 0 || statusY != 0 || statusZ != 0) {
+			degree++;
+			printf("Incrementing degree to %d...\n", degree);
+			xCoeff = polyfit(time, x, degree, statusX);
+			yCoeff = polyfit(time, y, degree, statusY);
+			zCoeff = polyfit(time, z, degree, statusZ);
+		}
 
 		// calculating the interpolated x,y,z values based on the 3 fitted polynomials
 		double xt = polyvalue(xCoeff, t);
@@ -305,8 +313,10 @@ public:
 		Shamelessly robbed from http://www.vilipetek.com/2013/10/07/polynomial-fitting-in-c-using-boost/
 	*/
 	template<typename T>
-	static vector<T> polyfit(const vector<T>& oX, const vector<T>& oY, int nDegree) {
+	static vector<T> polyfit(const vector<T>& oX, const vector<T>& oY, int nDegree, int& status) {
 		using namespace boost::numeric::ublas;
+		status = 0;
+
 		if (oX.size() != oY.size()) 
 			throw invalid_argument( "X and Y vector sizes do not match" );
 
@@ -337,8 +347,14 @@ public:
 		// lu decomposition
 		permutation_matrix<int> pert(oXtXMatrix.size1());
 		const size_t singular = lu_factorize(oXtXMatrix, pert);
+
 		// must be singular
-		BOOST_ASSERT( singular == 0 );
+		if (singular != 0) {
+			status = -1;
+			return {};
+		}
+		//BOOST_ASSERT( singular == 0 );
+		
 		// backsubstitution
 		lu_substitute(oXtXMatrix, pert, oXtYMatrix);
 		// copy the result to coeff

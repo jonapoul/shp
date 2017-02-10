@@ -48,6 +48,7 @@ int main(int argc, char* argv[]) {
 		int i = int( (plateDate-firstEphDate)/step );
 		if (i < 0) 	// this happens if the first ephemeris record is after the first plate
 			continue;
+
 		Coords before 	  = eph[i].coords();
 		double beforeDate = eph[i].julian();
 		Coords after 	  = eph[i+1].coords();
@@ -106,9 +107,6 @@ int main(int argc, char* argv[]) {
 						matchStart.push_back(start);
 						matchMid.push_back(mid);
 						matchEnd.push_back(end);
-						double x = (xi  * (3600.0 / 67.12) * (180.0/M_PI)) + (355.0/2.0);
-						double y = (eta * (3600.0 / 67.12) * (180.0/M_PI)) + (355.0/2.0);
-						printf("%.3f %.3f\n", x, y);
 					}
 				}
 			}
@@ -118,22 +116,19 @@ int main(int argc, char* argv[]) {
 	}
 
 	// printing a summary of how many plates matched
-	//Plate::printMatches(matchPlates, matchCoords, matchCounts, matchMags, matchStart, matchMid, matchEnd);
+	Plate::printMatches(matchPlates, matchCoords, matchCounts, matchMags, matchStart, matchMid, matchEnd);
 	string firstDate = Plate::julianToGregorian(firstEphDate);
 	string lastDate  = Plate::julianToGregorian(eph[eph.size()-1].julian());
-	if (matchCount > 0) {
-		printf("%d matching plates found for %s between %s and %s\n",
-		       	matchCount,	objectName.c_str(), firstDate.c_str(), lastDate.c_str() );
-	}
-	else
+	if (matchCount > 0)
+		printf("%d matching plates found for %s between %s and %s\n",matchCount,objectName.c_str(),firstDate.c_str(),lastDate.c_str());
+	else 
 		printf("No matches found for %s!\n", objectName.c_str());
 
 	// if any playes matched in terms of coordinates, but the object was too faint to show up, tooFaintCount increments. If this has happened more than once, this bit is printed
 	if (tooFaintCount > 0) {
 		cout << tooFaintCount << (matchCount>0 ? " other" : "") << " plate" << (tooFaintCount==1 ? "" : "s");
 		cout << " matched, but " << (tooFaintCount==1 ? "was" : "were") << " too faint to show up on the plate\n";
-	}
-	if (missingPlateCount > 0) {
+	} if (missingPlateCount > 0) {
 		cout << missingPlateCount << (matchCount>0 ? " other" : "") << " plate" << (missingPlateCount==1 ? "" : "s");
 		cout << " matched, but " << (missingPlateCount==1 ? "isn't" : "aren't") << " in the plate room\n";
 	}
@@ -150,13 +145,14 @@ int main(int argc, char* argv[]) {
 
 
 // TO DO
-	// proper lininterp instead of polyfit
-	// test 		double frac = (ut) / 24.0; instead of ut-12.0 on convertDate()
-	// regularise time points??
-	// use comparison shot from another sky survey to tell if the object im looking at is actually what i think it is
+	// testing 19249 on ceres2 -p 3 -n 20
+		// different results?
+	// proper lininterp instead of polyfit?
+	// normalise/regularise time points??
+
 	// scale magnitude limits based on exposure times (logarithmically?)
 	// try to incorporate the errors in RA/DEC from the ephemeris somewhere
 		// error propagation through the transformation?
 		// even error circle around the point on the plate? 
 		// probably distorted?
-		// comes from extrapolating objects paths when they were recently discovered, eg Eris/Makemake
+		// comes from extrapolating objects paths backwards if they were recently discovered, eg Eris/Makemake

@@ -10,6 +10,8 @@
 #include "Coords.h"
 using namespace std;
 
+#define PLATE_SIZE 354.5
+
 class Plate {
 private:
 	int m_id;				// plate identification number
@@ -110,7 +112,7 @@ public:
 		This assumes that all dates are between 1st Jan 1917 and 31st Dec 2016, which is fine for
 		these plate catalogs since they don't go beyond ~2003
 
-		Shamelessly pilfered from "Practical Astronomy with your Calculator or Spreadsheet"
+		From "Practical Astronomy with your Calculator or Spreadsheet"
 	*/
 	static double convertDate(const string& gregorianDate, const string& lst) {
 		int year = stoi(gregorianDate.substr(0, 2));
@@ -122,7 +124,7 @@ public:
 		int mins  = stoi(lst.substr(2, 2));
 
 		double julian = gregorianToJulian(double(day), month, year);
-		double gst = LSTtoGST(hour, mins, 0.0, 149.07);
+		double gst = LSTtoGST(hour, mins, 0.0, 149.0644);//149.07);
 		double ut = GSTtoUT(gst, julian);
 		double frac = (ut) / 24.0;
 		julian += frac;
@@ -185,9 +187,9 @@ public:
 		Takes the LST at Siding Springs observatory and returns the Greenwich Sidereal Time
 	*/
 	static double LSTtoGST(const int hour, const int min, const double sec, const double longitude) {
-		double lstF = hour + (min/60.0) + (sec/3600.0);
-		double longHour = longitude/15.0; 	// in hours
-		double gst = lstF - longHour;
+		double lstDecimal = hour + (min/60.0) + (sec/3600.0);
+		double longitudeHours = longitude/15.0; 	// decimal hours
+		double gst = lstDecimal - longitudeHours;
 		while (gst > 24) gst -= 24;
 		while (gst < 0) gst += 24;
 		return gst;
@@ -239,10 +241,8 @@ public:
 	static void printMatch(const Plate& p, const Coords& interp, const int count, const double mag, const pair<double,double>& start, const pair<double,double>& mid, const pair<double,double>& end) {
 
 		// coordinate conversion from xi/eta to x/y coordinates from bottom left of plate (in mm)
-		double degreesToMillimetres = 3600.0 / 67.12;
-		double radsToDegs = 180.0 / M_PI;
-		double x = (mid.first  * degreesToMillimetres * radsToDegs) + (354.5/2.0);
-		double y = (mid.second * degreesToMillimetres * radsToDegs) + (354.5/2.0);
+		double x = radsToMM(mid.first);
+		double y = radsToMM(mid.second);
 
 		// calculating the drift distance between the start and end of exposure (in mm)
 		double dx = end.first  - start.first;
@@ -271,13 +271,11 @@ public:
 		This is a LITTLE BIT OF A MESS but it works
 	*/
 	static void printMatches(const vector<Plate>& p, const vector<Coords>& c, const vector<int>& count, const vector<double>& mag, const vector<pair<double,double>>& start, const vector<pair<double,double>>& mid, const vector<pair<double,double>>& end) {
-		
-		double degreesToMillimetres = 3600.0 / 67.12;
-		double radsToDegs = 180.0 / M_PI;
+
 		vector<pair<double,double>> middle;
 		for (auto m : mid) {
-			double x = (m.first  * degreesToMillimetres * radsToDegs) + (355/2.0);
-			double y = (m.second * degreesToMillimetres * radsToDegs) + (355/2.0);
+			double x = radsToMM(m.first);
+			double y = radsToMM(m.second);
 			middle.push_back({x, y});
 		}
 
@@ -296,7 +294,7 @@ public:
 				printf("\tDrift length   = %.2f mm\n", drift);
 				printf("\tMagnitude      = %.2f\n", mag[i]);
 				printf("\tPlate Grade    = %c\n", p[i].grade());
-				printf("\tExposure       = %.1f mins\n", p[i].exposure()*14400);
+				printf("\tExposure       = %.1f mins\n", p[i].exposure()*1440);
 				printf("---------------------------------------------------------\n");
 			}
 			else {
@@ -394,8 +392,8 @@ public:
 				ss.str("");
 
 				char buffer19[50], buffer20[50];
-				sprintf(buffer19, "\tExposure       = %.1f mins", p[i].exposure()*14400);
-				sprintf(buffer20, "\tExposure       = %.1f mins", p[i+1].exposure()*14400);
+				sprintf(buffer19, "\tExposure       = %.1f mins", p[i].exposure()*1440);
+				sprintf(buffer20, "\tExposure       = %.1f mins", p[i+1].exposure()*1440);
 				ss << buffer19;
 				length = 50-ss.str().length();
 				ss << string(length, ' ');
@@ -406,6 +404,8 @@ public:
 				cout << string(120, '-') << '\n';
 			}
 		}
+		// for (auto m : middle)	
+		// 	printf("%f %f\n", m.first, m.second);
 		return;
 	}
 	
@@ -474,12 +474,23 @@ public:
 
 		double degreesToMillimetres = 3600.0 / 67.12;
 		double radsToDegs = 180.0 / M_PI;
-		double x1 = (xiStart  * radsToDegs * degreesToMillimetres) + (354.5/2.0);
-		double y1 = (etaStart * radsToDegs * degreesToMillimetres) + (354.5/2.0);
-		double x2 = (xiEnd    * radsToDegs * degreesToMillimetres) + (354.5/2.0);
-		double y2 = (etaEnd   * radsToDegs * degreesToMillimetres) + (354.5/2.0);
+		double x1 = radsToMM(xiStart);
+		double y1 = radsToMM(etaStart);
+		double x2 = radsToMM(xiEnd);
+		double y2 = radsToMM(etaEnd);
 		start = {x1, y1};
 		end   = {x2, y2};
+	}
+
+	/*
+		Converts the output of a gnomonic transformation to mm
+	*/
+	static double radsToMM(const double rads) {
+		return (rads * 3600.0 * 180.0) / (67.12 * M_PI) + (PLATE_SIZE / 2.0);
+	}
+
+	static double mmToRads(const double mm) {
+		return (mm - (PLATE_SIZE / 2.0)) * (67.12 * M_PI) / (3600.0 * 180.0);
 	}
 
 };
