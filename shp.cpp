@@ -8,7 +8,7 @@
 using namespace std;
 
 int main(int argc, char* argv[]) {	
-	chrono::time_point<chrono::system_clock> start = chrono::system_clock::now();
+	chrono::time_point<chrono::system_clock> start = chrono::system_clock::now();	
 
 	// determining the program parameters from command line arguments
 	int degree, numInterp;
@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
 	Plate::readPlateCatalog(plates, "catalog.txt");
 	// reading all ephemeris records
 	vector<Ephemeris> eph;
-	Ephemeris::readEphemerisFile(eph, "ephemeris/"+objectName+".txt");
+	Ephemeris::readEphemerisFile(eph, objectName);
 	objectName[0] = toupper(objectName[0]);
 
 	// defining the first date in the ephemeris file, for later reference
@@ -39,6 +39,8 @@ int main(int argc, char* argv[]) {
 	vector<int> matchCounts;
 	vector<double> matchMags;
 	vector<pair<double,double>> matchStart, matchMid, matchEnd;
+
+	double closest = 180.0;
 
 	// through every plate record
 	for (int p = 0; p < loopLimit; p++) {
@@ -60,10 +62,10 @@ int main(int argc, char* argv[]) {
 		// calculating the angular distance between the interpolated coordinates and the plate centre
 		Coords plateCoords	   = plates[p].coords();
 		double angularDistance = Coords::angularDistance(interpedCoords, plateCoords);
-		double magnitude 	   = Ephemeris::linInterp(eph[i].mag(), beforeDate, eph[i+1].mag(), afterDate, plateDate);
+		closest = (angularDistance < closest) ? angularDistance : closest;
 
 		// if the object is within a reasonable angular distance of the plate, do more accurate tests
-		if (angularDistance < 1.5*distanceThreshold && magnitude <= plates[p].magLimit()) {
+		if (angularDistance < 1.5*distanceThreshold) {
 
 			// interpolating the ephemeris coordinates using the ephemeris records surrounding it
 			vector<Coords> nearbyCoords(numInterp);
@@ -96,8 +98,14 @@ int main(int argc, char* argv[]) {
 							missingPlateCount++;
 							continue;
 						}
-						// calculating the xi/eta coords of the points at the start and end of the exposure
-						pair<double,double> start, end, mid(xi, eta);
+						// checks whether the plate's magnitude limit is low enough to spot the object's trail
+						double magnitude = Ephemeris::linInterp(eph[i].mag(), beforeDate, eph[i+1].mag(), afterDate, plateDate);
+						if (magnitude > plates[p].magLimit()) {
+							tooFaintCount++;
+							continue;
+						}
+						// xi/eta coords of the points at the start, middle and end of the exposure
+						pair<double,double> start, mid(xi, eta), end;
 						Plate::exposureBoundaries(plates[p], nearbyCoords, nearbyTimes, degree, start, end);
 						// adding the relevant values to arrays to be printed at the end
 						matchCounts.push_back(++matchCount);
@@ -110,8 +118,6 @@ int main(int argc, char* argv[]) {
 					}
 				}
 			}
-		} else if (magnitude > plates[p].magLimit()) {
-			tooFaintCount++;
 		}
 	}
 
@@ -119,6 +125,7 @@ int main(int argc, char* argv[]) {
 	Plate::printMatches(matchPlates, matchCoords, matchCounts, matchMags, matchStart, matchMid, matchEnd);
 	string firstDate = Plate::julianToGregorian(firstEphDate);
 	string lastDate  = Plate::julianToGregorian(eph[eph.size()-1].julian());
+	for (auto& c : objectName) c = toupper(c);
 	if (matchCount > 0)
 		printf("%d matching plates found for %s between %s and %s\n",matchCount,objectName.c_str(),firstDate.c_str(),lastDate.c_str());
 	else 
@@ -131,12 +138,14 @@ int main(int argc, char* argv[]) {
 	} if (missingPlateCount > 0) {
 		cout << missingPlateCount << (matchCount>0 ? " other" : "") << " plate" << (missingPlateCount==1 ? "" : "s");
 		cout << " matched, but " << (missingPlateCount==1 ? "isn't" : "aren't") << " in the plate room\n";
+	} if (tooFaintCount == 0 && matchCount == 0) {
+		printf("Closest approach was %.3f degrees from plate centre\n", closest);
 	}
 	string sign = "th";
 	if 		(degree % 10 == 1) sign = "st";
 	else if (degree % 10 == 2) sign = "nd";
 	else if (degree % 10 == 3) sign = "rd";
-	printf("Interpolated using %d surrounding ephemerides in a %d%s order polynomial\n", numInterp, degree, sign.c_str());
+	printf("Interpolation fitted using %d surrounding ephemerides in a %d%s order polynomial\n", numInterp, degree, sign.c_str());
 
 	// printing the total time taken when running the program	
 	chrono::duration<double> elapsed_seconds = chrono::system_clock::now() - start;
@@ -145,9 +154,7 @@ int main(int argc, char* argv[]) {
 
 
 // TO DO
-	// testing 19249 on ceres2 -p 3 -n 20
-		// different results?
-	// proper lininterp instead of polyfit?
+	// lininterp instead of polyfit?
 	// normalise/regularise time points??
 
 	// scale magnitude limits based on exposure times (logarithmically?)

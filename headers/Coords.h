@@ -283,7 +283,7 @@ public:
 
 		while (statusX != 0 || statusY != 0 || statusZ != 0) {
 			degree++;
-			printf("Incrementing degree to %d...\n", degree);
+			//printf("Incrementing degree to %d...\n", degree);
 			xCoeff = polyfit(time, x, degree, statusX);
 			yCoeff = polyfit(time, y, degree, statusY);
 			zCoeff = polyfit(time, z, degree, statusZ);

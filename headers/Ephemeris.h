@@ -85,7 +85,22 @@ public:
 		data lines.
 	*/
 	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename) {
-		ifstream ephemerisFile(filename);
+		fs::path path;
+		bool fileDoesntExist = true;
+		for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
+			fs::path dir = itr.path();
+			fs::path file = dir.string() +  '/' + filename + ".txt";
+			if (is_directory(dir) && fs::exists(file)) {
+				path = file;
+				fileDoesntExist = false;
+				break;
+			}
+		}
+		if (fileDoesntExist) {
+			cout << filename << ".txt couldn't be found anywhere in /ephemeris/, exiting...\n";
+			exit(1);
+		}
+		ifstream ephemerisFile(path);
 		if (ephemerisFile.is_open()) {
 			bool canReadEntries = false;
 			bool isSurfBrt = false;
@@ -93,7 +108,7 @@ public:
 				string buffer;
 				getline(ephemerisFile, buffer);
 				// if the column headers include "S-brt", pass that flag to the parsing function
-				// so that it knows to pass over the surface brightness value when reading in
+				// so that it knows to ignore the surface brightness value when reading in
 				if (!canReadEntries && buffer.find("S-brt") != string::npos)
 					isSurfBrt = true;
 				// End Of Entries, back out of the loop since all data is done
@@ -159,18 +174,13 @@ public:
 				cout << "   This gives the matching plates for Ceres, using 10 surrounding ephemeris records, using a cubic fit\n\n";
 				exit(1);
 			} else if (param == "files") {
-				printFiles();
-				exit(1);
+				name = printFiles();
 			} else if (param == "-o") {
 				if (i+1 >= argc) {
 					cout << "You need another argument after -o. Exiting...\n";
 					exit(1);
 				}
 				name = argv[i+1];
-				if (!fs::exists("ephemeris/"+name+".txt")) {
-					cout << "ephemeris/" << name << ".txt doesn't exist. Exiting...\n";
-					exit(1);
-				}
 			} else if (param == "-n") {
 				if (i+1 >= argc) {
 					cout << "You need another argument after -n. Exiting...\n";
@@ -211,16 +221,16 @@ public:
 		if (power > num) num = power;
 	}
 
-	static void printFiles() {
-		fs::path ephPath = "./ephemeris/";
-		fs::directory_iterator end;
+	static string printFiles() {
 		vector<string> files;
-		for (fs::directory_iterator itr(ephPath); itr != end; itr++) {
-			if (is_regular_file(itr->path()))
-				files.push_back(itr->path().stem().string());
+		for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
+			if (is_regular_file(itr.path()))
+				files.push_back(itr.path().stem().string());
 		}
+
+		sort(files.begin(), files.end(), less<string>());
 		cout << "\n   FILES:\n";
-		cout << "   The available ephemerides for the -o option are:\n";
+		cout << "   The available ephemerides are:\n";
 
 		size_t maxLength = 0, size = files.size();
 		for (auto f : files)
@@ -233,7 +243,23 @@ public:
 				cout << '\t' << files[j+2] << string(maxLength+2-files[j+2].length(), ' ');
 			cout << '\n';
 		}
-		cout << "\n";
+
+		cout << "\nEnter option: ";
+		string output;
+		cin >> output;
+		for (auto& c : output) c = tolower(c);
+		bool choiceIsValid = false;
+		while (!choiceIsValid) {
+			for (auto f : files) {
+				if (f == output) choiceIsValid = true;
+			}
+			if (!choiceIsValid) {
+				cout << "That file doesn't exist, try again: ";
+				cin >> output;
+				for (auto& c : output) c = tolower(c);
+			}
+		}
+		return output;
 	}
 
 };
