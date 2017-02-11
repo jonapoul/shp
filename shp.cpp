@@ -126,10 +126,12 @@ int main(int argc, char* argv[]) {
 	string firstDate = Plate::julianToGregorian(firstEphDate);
 	string lastDate  = Plate::julianToGregorian(eph[eph.size()-1].julian());
 	for (auto& c : objectName) c = toupper(c);
-	if (matchCount > 0)
-		printf("%d matching plates found for %s between %s and %s\n",matchCount,objectName.c_str(),firstDate.c_str(),lastDate.c_str());
-	else 
-		printf("No matches found for %s!\n", objectName.c_str());
+	if (matchCount > 0) {
+		cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << objectName << " between ";
+		cout << firstDate << " and " << lastDate << '\n';
+	} else {
+		cout << "No matches found for " << objectName << "!\n";
+	}
 
 	// if any playes matched in terms of coordinates, but the object was too faint to show up, tooFaintCount increments. If this has happened more than once, this bit is printed
 	if (tooFaintCount > 0) {

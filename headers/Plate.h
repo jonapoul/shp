@@ -295,9 +295,11 @@ public:
 				printf("\tMagnitude      = %.2f\n", mag[i]);
 				printf("\tPlate Grade    = %c\n", p[i].grade());
 				printf("\tExposure       = %.1f mins\n", p[i].exposure()*1440);
-				printf("---------------------------------------------------------\n");
+				printf("----------------------------------------------------\n");
 			}
 			else {
+				const int SIZE = 42;	// defines width of each printed data box
+
 				stringstream ss;
 				char buffer0[50], buffer01[50], buffer1[50], buffer2[50];
 				sprintf(buffer0, "%03d", count[i]);
@@ -305,14 +307,14 @@ public:
 				sprintf(buffer1, "\tplate ID       = %d", p[i].id());
 				sprintf(buffer2, "\tplate ID       = %d", p[i+1].id());
 				ss << buffer0 << buffer1;
-				size_t length = 50-ss.str().length();
+				size_t length = SIZE-ss.str().length();
 				ss << string(length+3, ' ');
 				ss << "| " << buffer01 << buffer2 << '\n';
 				cout << ss.str();
 				ss.str("");
 
 				ss << "\tUT date        = " << gregorianToString(p[i].gregorian());
-				length = 50-ss.str().length();
+				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| " << "\tUT date        = " << gregorianToString(p[i+1].gregorian()) << '\n';
 				cout << ss.str();
@@ -322,7 +324,7 @@ public:
 				sprintf(buffer3, "\tJulian date    = %.3f", p[i].julian());
 				sprintf(buffer4, "\tJulian date    = %.3f", p[i+1].julian());
 				ss << buffer3;
-				length = 50-ss.str().length();
+				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| " << buffer4 << '\n';
 				cout << ss.str();
@@ -332,7 +334,7 @@ public:
 				sprintf(buffer5, "\tPlate Coords   = (%.3f, %.3f) deg", p[i].coords().getDegRA(), p[i].coords().getDegDEC());
 				sprintf(buffer6, "\tPlate Coords   = (%.3f, %.3f) deg", p[i+1].coords().getDegRA(), p[i+1].coords().getDegDEC());
 				ss << buffer5;
-				length = 50-ss.str().length();
+				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| " << buffer6 << '\n';
 				cout << ss.str();
@@ -342,7 +344,7 @@ public:
 				sprintf(buffer7, "\tObject Coords  = (%.3f, %.3f) deg", c[i].getDegRA(), c[i].getDegDEC());
 				sprintf(buffer8, "\tObject Coords  = (%.3f, %.3f) deg", c[i+1].getDegRA(), c[i+1].getDegDEC());
 				ss << buffer7;
-				length = 50-ss.str().length();
+				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| " << buffer8 << '\n';
 				cout << ss.str();
@@ -352,7 +354,7 @@ public:
 				sprintf(buffer11, "\tPlate Position = (%.3f, %.3f) mm", middle[i].first, middle[i].second);
 				sprintf(buffer12, "\tPlate Position = (%.3f, %.3f) mm", middle[i+1].first, middle[i+1].second);
 				ss << buffer11;
-				length = 50-ss.str().length();
+				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| " << buffer12 << '\n';
 				cout << ss.str();
@@ -368,7 +370,7 @@ public:
 				drift = sqrt(dx*dx + dy*dy);
 				sprintf(buffer16, "\tDrift length   = %.2f mm", drift);
 				ss << buffer15;
-				length = 50-ss.str().length();
+				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| " << buffer16 << '\n';
 				cout << ss.str();
@@ -378,14 +380,14 @@ public:
 				sprintf(buffer17, "\tMagnitude      = %.2f", mag[i]);
 				sprintf(buffer18, "\tMagnitude      = %.2f", mag[i+1]);
 				ss << buffer17;
-				length = 50-ss.str().length();
+				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| " << buffer18 << '\n';
 				cout << ss.str();
 				ss.str("");
 
 				ss << "\tPlate Grade    = " << p[i].grade();
-				length = 50-ss.str().length();
+				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| \tPlate Grade    = " << p[i+1].grade() << '\n';
 				cout << ss.str();
@@ -395,13 +397,13 @@ public:
 				sprintf(buffer19, "\tExposure       = %.1f mins", p[i].exposure()*1440);
 				sprintf(buffer20, "\tExposure       = %.1f mins", p[i+1].exposure()*1440);
 				ss << buffer19;
-				length = 50-ss.str().length();
+				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| " << buffer20 << '\n';
 				cout << ss.str();
 				ss.str("");
 
-				cout << string(120, '-') << '\n';
+				cout << string(SIZE*2.4, '-') << '\n';
 			}
 		}
 		// for (auto m : middle)	
