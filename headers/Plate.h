@@ -352,9 +352,9 @@ public:
 				cout << string(SIZE*2.4, '-') << '\n';
 			}
 		}
-		/*for (int i = 0; i < middle.size(); i++) {
+		for (int i = 0; i < middle.size(); i++) {
 			printf("%d %.3f %.3f %.3f\n", p[i].id(), p[i].julian(), middle[i].first, middle[i].second);
-		}*/
+		}
 	}
 	
 	/*
@@ -408,20 +408,19 @@ public:
 		Returns the values as an std::pair<double> object, with xi as first and eta in second
 	*/
 	static void exposureBoundaries(const Plate& p, const vector<Coords>& coords, const vector<double>& times, 
-	                               const double degree, pair<double, double>& start, pair<double, double>& end) {
+	                               pair<double, double>& start, pair<double, double>& end) {
 		double expTime   = p.exposure();
 		double startTime = p.julian() - (expTime/2.0);
 		double endTime   = p.julian() + (expTime/2.0);
-		Coords startCoords = Coords::polyInterp(coords, times, startTime, degree);
-		Coords endCoords   = Coords::polyInterp(coords, times, endTime,   degree);
+		Coords startCoords = Coords::linInterp(coords[0], times[0], coords[1], times[1], startTime);
+		Coords endCoords   = Coords::linInterp(coords[0], times[0], coords[1], times[1], endTime);
 
 		double xiStart, xiEnd, etaStart, etaEnd;
 		int status1, status2;
 		Coords::gnomonic(startCoords, p.m_coords, xiStart, etaStart, status1);
 		Coords::gnomonic(endCoords,   p.m_coords, xiEnd,   etaEnd,   status2);
+		if (status1 != 0 || status2 != 0) printf("Plate %d failed at exposureBoundaries()!\n", p.id());
 
-		double degreesToMillimetres = 3600.0 / 67.12;
-		double radsToDegs = 180.0 / M_PI;
 		double x1 = radsToMM(xiStart);
 		double y1 = radsToMM(etaStart);
 		double x2 = radsToMM(xiEnd);

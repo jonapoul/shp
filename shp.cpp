@@ -11,9 +11,9 @@ int main(int argc, char* argv[]) {
 	chrono::time_point<chrono::system_clock> start = chrono::system_clock::now();	
 
 	// determining the program parameters from command line arguments
-	int degree, numInterp;
 	string objectName;
-	Ephemeris::determineParameters(argc, argv, objectName, numInterp, degree);
+	bool couldntRead;
+	Ephemeris::determineParameters(argc, argv, objectName, couldntRead);
 	// an array of plate IDs that I couldn't find in the archive room
 	vector<int> blacklist = {4910, 14587};
 	// reading all valid plate records
@@ -62,60 +62,48 @@ int main(int argc, char* argv[]) {
 		// calculating the angular distance between the interpolated coordinates and the plate centre
 		Coords plateCoords	   = plates[p].coords();
 		double angularDistance = Coords::angularDistance(interpedCoords, plateCoords);
+		// this is only used if zero plates match, to give the user an idea of how close any of them were
 		closest = (angularDistance < closest) ? angularDistance : closest;
 
 		// if the object is within a reasonable angular distance of the plate, do more accurate tests
-		if (angularDistance < 1.5*distanceThreshold) {
-
-			// interpolating the ephemeris coordinates using the ephemeris records surrounding it
-			vector<Coords> nearbyCoords(numInterp);
-			vector<double> nearbyTimes(numInterp);
-			Ephemeris::findNearbyEphs(eph, numInterp, i, nearbyCoords, nearbyTimes);		
-
-			// performing the polynomial least-squares fit using the nearby ephemeris records
-			interpedCoords = Coords::polyInterp(nearbyCoords, nearbyTimes, plateDate, degree);
-
-			// recalculating the angular distance to make sure the object is definitely somewhere on the plate
-			angularDistance = Coords::angularDistance(interpedCoords, plateCoords);
-			if (angularDistance < distanceThreshold) {
-				double xi, eta;
-				int status;
-				// calculate the x/y coordinates of the interpolated point, with the plate centre as the tangent point
-				Coords::gnomonic(interpedCoords, plateCoords, xi, eta, status);
-				// if the transformation went ok
-				if (status == 0) {
-					Coords fromXAxis, fromYAxis;
-					// calculate RA/DEC coordinates of the points that lie on the x/y axes respectively
-					Coords::inverseGnomonic(xi,  0.0, interpedCoords, fromXAxis);
-					Coords::inverseGnomonic(0.0, eta, interpedCoords, fromYAxis);
-					// calculate the angular distance between the points (in degrees)
-					double toXAxis = Coords::angularDistance(interpedCoords, fromXAxis);
-					double toYAxis = Coords::angularDistance(interpedCoords, fromYAxis);
-					// if the distances are both less than 3.2 degrees, the point will be on the plate
-					if (toXAxis < 3.2 && toYAxis < 3.2) {
-						// checks whether the matched plate is known to be missing
-						if ( Plate::plateIsMissing(plates[p], blacklist) ) {
-							missingPlateCount++;
-							continue;
-						}
-						// checks whether the plate's magnitude limit is sufficient to spot the object
-						double magnitude = Ephemeris::linInterp(eph[i].mag(), beforeDate, eph[i+1].mag(), afterDate, plateDate);
-						if (magnitude > plates[p].magLimit()) {
-							tooFaintCount++;
-							continue;
-						}
-						// xi/eta coords of the points at the start, middle and end of the exposure
-						pair<double,double> start, mid(xi, eta), end;
-						Plate::exposureBoundaries(plates[p], nearbyCoords, nearbyTimes, degree, start, end);
-						// adding the relevant values to arrays to be printed at the end
-						matchCounts.push_back(++matchCount);
-						matchPlates.push_back(plates[p]);
-						matchCoords.push_back(interpedCoords);
-						matchMags.push_back(magnitude);
-						matchStart.push_back(start);
-						matchMid.push_back(mid);
-						matchEnd.push_back(end);
+		if (angularDistance < distanceThreshold) {	
+			double xi, eta;
+			int status;
+			// calculate the x/y coordinates of the interpolated point, with the plate centre as the tangent point
+			Coords::gnomonic(interpedCoords, plateCoords, xi, eta, status);
+			// if the transformation went ok
+			if (status == 0) {
+				Coords fromXAxis, fromYAxis;
+				// calculate RA/DEC coordinates of the points that lie on the x/y axes respectively
+				Coords::inverseGnomonic(xi,  0.0, interpedCoords, fromXAxis);
+				Coords::inverseGnomonic(0.0, eta, interpedCoords, fromYAxis);
+				// calculate the angular distance between the points (in degrees)
+				double toXAxis = Coords::angularDistance(interpedCoords, fromXAxis);
+				double toYAxis = Coords::angularDistance(interpedCoords, fromYAxis);
+				// if the distances are both less than 3.2 degrees, the point will be on the plate
+				if (toXAxis < 3.2 && toYAxis < 3.2) {
+					// checks whether the matched plate is known to be missing
+					if ( Plate::plateIsMissing(plates[p], blacklist) ) {
+						missingPlateCount++;
+						continue;
 					}
+					// checks whether the plate's magnitude limit is sufficient to spot the object
+					double magnitude = Ephemeris::linInterp(eph[i].mag(), beforeDate, eph[i+1].mag(), afterDate, plateDate);
+					if (magnitude > plates[p].magLimit()) {
+						tooFaintCount++;
+						continue;
+					}
+					// xi/eta coords of the points at the start, middle and end of the exposure
+					pair<double,double> start, mid(xi, eta), end;
+					Plate::exposureBoundaries(plates[p], {before,after}, {beforeDate,afterDate}, start, end);
+					// adding the relevant values to arrays to be printed at the end
+					matchCounts.push_back(++matchCount);
+					matchPlates.push_back(plates[p]);
+					matchCoords.push_back(interpedCoords);
+					matchMags.push_back(magnitude);
+					matchStart.push_back(start);
+					matchMid.push_back(mid);
+					matchEnd.push_back(end);
 				}
 			}
 		}
@@ -125,6 +113,11 @@ int main(int argc, char* argv[]) {
 	Plate::printMatches(matchPlates, matchCoords, matchCounts, matchMags, matchStart, matchMid, matchEnd);
 	string firstDate = Plate::julianToGregorian(firstEphDate);
 	string lastDate  = Plate::julianToGregorian(eph[eph.size()-1].julian());
+	if (argc < 2) {
+		cout << "Defaulted to CERES\n";
+	} else if (couldntRead) {
+		cout << "Filename \"" << argv[1] << ".txt\" doesn't exist in /ephemeris, defaulted to CERES\n";
+	}
 	for (auto& c : objectName) c = toupper(c);
 	if (matchCount > 0) {
 		cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << objectName;
@@ -143,12 +136,6 @@ int main(int argc, char* argv[]) {
 	} if (tooFaintCount == 0 && matchCount == 0) {
 		printf("Closest approach was %.3f degrees from plate centre\n", closest);
 	}
-	string sign = "th";
-	if 		(degree % 10 == 1) sign = "st";
-	else if (degree % 10 == 2) sign = "nd";
-	else if (degree % 10 == 3) sign = "rd";
-	printf("Interpolated with a least-squares fit, using %d data points in a %d%s order polynomial\n", numInterp, degree, sign.c_str());
-
 	// printing the total time taken when running the program	
 	chrono::duration<double> elapsed_seconds = chrono::system_clock::now() - start;
 	printf("Elapsed time: %.4fs\n", elapsed_seconds.count());
@@ -156,8 +143,6 @@ int main(int argc, char* argv[]) {
 
 
 // TO DO
-	// lininterp instead of polyfit?
-	// normalise/regularise time points??
 	// add option on spreadsheet to add plate size field, plus adjusted position
 
 	// scale magnitude limits based on exposure times (logarithmically?)

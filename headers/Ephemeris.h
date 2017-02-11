@@ -67,19 +67,6 @@ public:
 	}
 
 	/*
-		Prints all the data stored in an Ephemeris object. Used for testing
-	*/
-	void printEphemeris() const {
-		printf("JD = %.2f ", m_day);
-		printf("RA = %8.4f ", m_coords.getDegRA());
-		printf("DEC = %8.4f ", m_coords.getDegDEC());
-		printf("LST = %7.4f ", m_lst);
-		printf("ApMag = %5.2f ", m_mag);
-		printf("dRA = %.4f ", m_dRA);
-		printf("dDEC = %.4f\n", m_dDEC);
-	}
-
-	/*
 		Goes through the ephemeris file to pick out all relevant data, then stores them all in 
 		a vector of Ephemeris objects. The $$SOE and $$EOE tags signify the start and end of the 
 		data lines.
@@ -134,7 +121,7 @@ public:
 
 	/*
 		Linearly interpolates a floating point number between two points
-		Intended for apparent magnitude estimation, but can be used for anything else
+		Intended for apparent magnitude
 	*/
 	static double linInterp(const double mag0, const double t0, const double mag1, const double t1, const double t) {
 		return mag0 + (t-t0)*(mag1-mag0)/(t1-t0);
@@ -160,65 +147,28 @@ public:
 		}
 	}
 
-	static void determineParameters(int argc, char* argv[], string& name, int& num, int& power) {
+	static void determineParameters(int argc, char* argv[], string& name, bool& couldntRead) {
 		name = "";
-		num = power = 0;
-		for (int i = 1; i < argc; i++) {
-			string param = string(argv[i]);
-			if (param == "help") {
-				cout << "\n   OPTIONS:\n";
-				cout << "\t-o :\tthe string name of the object you want to load the ephemerides for\n";
-				cout << "\t-n :\tthe integer number of surrounding ephemerides to use in the interpolation process (>=2)\n";
-				cout << "\t-p :\tthe integer power of polynomial coefficients to generate for the interpolation (>=0)\n";
-				cout << "\n   e.g. " << argv[0] << " -o ceres -n 10 -p 3\n";
-				cout << "   This gives the matching plates for Ceres, using 10 surrounding ephemeris records, using a cubic fit\n\n";
-				exit(1);
-			} else if (param == "files") {
-				name = printFiles();
-			} else if (param == "-o") {
-				if (i+1 >= argc) {
-					cout << "You need another argument after -o. Exiting...\n";
-					exit(1);
-				}
-				name = argv[i+1];
-			} else if (param == "-n") {
-				if (i+1 >= argc) {
-					cout << "You need another argument after -n. Exiting...\n";
-					exit(1);
-				}
-				string numStr = argv[i+1];
-				if (numStr.find_last_of("0123456789") == string::npos) {
-					cout << "-n must be followed by an integer number. Exiting...\n";
-					exit(1);
-				}
-				num = stoi(numStr);
-				if (num < 2) {
-					cout << "-n must be larger than 1. Exiting...\n";
-					exit(1);
-				}
-			} else if (param == "-p") {
-				if (i+1 >= argc) {
-					cout << "You need another argument after -p. Exiting...\n";
-					exit(1);
-				}
-				string powStr = argv[i+1];
-				if (powStr.find_last_of("0123456789") == string::npos) {
-					cout << "-p must be followed by an integer number. Exiting...\n";
-					exit(1);
-				}
-				power = stoi(powStr);
-				if (power < 1 || power > 23) {
-					cout << "-p must be larger than 0 and smaller than 24. Exiting...\n";
-					exit(1);
-				}
+		if (argc < 2) {
+			name = "ceres";
+			return;
+		}
+		string param = string(argv[1]);
+		if (param == "-files") {
+			name = printFiles();
+			couldntRead = false;
+			return;
+		}
+		for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
+			fs::path file = itr.path().string() +  '/' + param + ".txt";
+			if (fs::exists(file)) {
+				name = param;
+				couldntRead = false;
+				return;
 			}
 		}
-		// default values
-		if (name  == "") name  = "ceres";
-		if (num   == 0)  num   = 20;
-		if (power == 0)  power = 3;
-
-		if (power > num) num = power;
+		name = "ceres";
+		couldntRead = true;
 	}
 
 	static string printFiles() {
