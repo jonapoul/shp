@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
 			// interpolating the ephemeris coordinates using the ephemeris records surrounding it
 			vector<Coords> nearbyCoords(numInterp);
 			vector<double> nearbyTimes(numInterp);
-			Ephemeris::findNearbyEphs(eph, numInterp, i, nearbyCoords, nearbyTimes);
+			Ephemeris::findNearbyEphs(eph, numInterp, i, nearbyCoords, nearbyTimes);		
 
 			// performing the polynomial least-squares fit using the nearby ephemeris records
 			interpedCoords = Coords::polyInterp(nearbyCoords, nearbyTimes, plateDate, degree);
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
 							missingPlateCount++;
 							continue;
 						}
-						// checks whether the plate's magnitude limit is low enough to spot the object's trail
+						// checks whether the plate's magnitude limit is sufficient to spot the object
 						double magnitude = Ephemeris::linInterp(eph[i].mag(), beforeDate, eph[i+1].mag(), afterDate, plateDate);
 						if (magnitude > plates[p].magLimit()) {
 							tooFaintCount++;
@@ -127,8 +127,8 @@ int main(int argc, char* argv[]) {
 	string lastDate  = Plate::julianToGregorian(eph[eph.size()-1].julian());
 	for (auto& c : objectName) c = toupper(c);
 	if (matchCount > 0) {
-		cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << objectName << " between ";
-		cout << firstDate << " and " << lastDate << '\n';
+		cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << objectName;
+		cout << " between " << firstDate << " and " << lastDate << '\n';
 	} else {
 		cout << "No matches found for " << objectName << "!\n";
 	}
@@ -147,7 +147,7 @@ int main(int argc, char* argv[]) {
 	if 		(degree % 10 == 1) sign = "st";
 	else if (degree % 10 == 2) sign = "nd";
 	else if (degree % 10 == 3) sign = "rd";
-	printf("Interpolation fitted using %d surrounding ephemerides in a %d%s order polynomial\n", numInterp, degree, sign.c_str());
+	printf("Interpolated with a least-squares fit, using %d data points in a %d%s order polynomial\n", numInterp, degree, sign.c_str());
 
 	// printing the total time taken when running the program	
 	chrono::duration<double> elapsed_seconds = chrono::system_clock::now() - start;
@@ -158,6 +158,7 @@ int main(int argc, char* argv[]) {
 // TO DO
 	// lininterp instead of polyfit?
 	// normalise/regularise time points??
+	// add option on spreadsheet to add plate size field, plus adjusted position
 
 	// scale magnitude limits based on exposure times (logarithmically?)
 	// try to incorporate the errors in RA/DEC from the ephemeris somewhere

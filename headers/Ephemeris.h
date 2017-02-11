@@ -215,44 +215,59 @@ public:
 		}
 		// default values
 		if (name  == "") name  = "ceres";
-		if (num   == 0)  num   = 10;
+		if (num   == 0)  num   = 20;
 		if (power == 0)  power = 3;
 
 		if (power > num) num = power;
 	}
 
 	static string printFiles() {
-		vector<string> files;
-		for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
-			if (is_regular_file(itr.path()))
-				files.push_back(itr.path().stem().string());
+		vector<string> comets, planets;
+		// picking up all filenames from tboth folders
+		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/comets")) {
+			if (is_regular_file(itr.path())) comets.push_back(itr.path().stem().string());
 		}
+		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/planets")) {
+			if (is_regular_file(itr.path())) planets.push_back(itr.path().stem().string());
+		}
+		sort(planets.begin(), planets.end(), less<string>());
+		sort(comets.begin(),  comets.end(),  less<string>());
+		
 
-		sort(files.begin(), files.end(), less<string>());
-		cout << "\n   FILES:\n";
-		cout << "   The available ephemerides are:\n";
+		// finding the length of the longest filename
+		size_t maxLength = 0;
+		for (auto p : planets) maxLength = (p.length() > maxLength) ? p.length() : maxLength;
+		for (auto c : comets)  maxLength = (c.length() > maxLength) ? c.length() : maxLength;
 
-		size_t maxLength = 0, size = files.size();
-		for (auto f : files)
-			maxLength = (f.length() > maxLength) ? f.length() : maxLength;
-		for (size_t j = 0; j < files.size(); j += 3) {
-			cout << '\t' << files[j] << string(maxLength+2-files[j].length(), ' ');
-			if (j+1 < size) 
-				cout << '\t' << files[j+1] << string(maxLength+2-files[j+1].length(), ' ');
-			if (j+2 < size)
-				cout << '\t' << files[j+2] << string(maxLength+2-files[j+2].length(), ' ');
+		// printing all the file options
+		cout << "   Planets:\n";
+		for (size_t j = 0; j < planets.size(); j += 3) {
+			cout << '\t' << planets[j] << string(maxLength+2-planets[j].length(), ' ');
+			if (j+1 < planets.size()) 
+				cout << '\t' << planets[j+1] << string(maxLength+2-planets[j+1].length(), ' ');
+			if (j+2 < planets.size())
+				cout << '\t' << planets[j+2] << string(maxLength+2-planets[j+2].length(), ' ');
+			cout << '\n';
+		}
+		cout << "\n   Comets:\n";
+		for (size_t j = 0; j < comets.size(); j += 3) {
+			cout << '\t' << comets[j] << string(maxLength+2-comets[j].length(), ' ');
+			if (j+1 < comets.size()) 
+				cout << '\t' << comets[j+1] << string(maxLength+2-comets[j+1].length(), ' ');
+			if (j+2 < comets.size())
+				cout << '\t' << comets[j+2] << string(maxLength+2-comets[j+2].length(), ' ');
 			cout << '\n';
 		}
 
+		// taking input from the user
 		cout << "\nEnter option: ";
 		string output;
 		cin >> output;
 		for (auto& c : output) c = tolower(c);
 		bool choiceIsValid = false;
 		while (!choiceIsValid) {
-			for (auto f : files) {
-				if (f == output) choiceIsValid = true;
-			}
+			for (auto p : planets) if (p == output) choiceIsValid = true;
+			for (auto c : comets)  if (c == output) choiceIsValid = true;
 			if (!choiceIsValid) {
 				cout << "That file doesn't exist, try again: ";
 				cin >> output;

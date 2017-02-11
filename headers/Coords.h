@@ -126,11 +126,7 @@ public:
 		Calculates the cosine of the angular distance between two spherical coordinates
 	*/
 	static double cosAngularDistance(const Coords& a, const Coords& b) {
-		double a_ra  = a.m_radRA;
-		double a_dec = a.m_radDEC;
-		double b_ra  = b.m_radRA;
-		double b_dec = b.m_radDEC;
-		return sin(a_dec)*sin(b_dec) + cos(a_dec)*cos(b_dec)*cos(a_ra-b_ra);
+		return sin(a.m_radDEC)*sin(b.m_radDEC) + cos(a.m_radDEC)*cos(b.m_radDEC)*cos(a.m_radRA - b.m_radRA);
 	}
 
 	/*
@@ -167,11 +163,11 @@ public:
 	    double sin_dRA  = sin(dRA);
 	    double cos_dRA  = cos(dRA);
 
-		/* Reciprocal of star vector length to tangent plane */
+		// Cosine of the angular distance between the object and the tangent point
 	    double denom = cosAngularDistance(c, c0);
 
+	    // Handle vectors too far from axis
 	    double TINY = 1e-6;
-		/* Handle vectors too far from axis */
 	   	if ( denom > TINY ) { 
 	   		status = 0;
 	    } else if ( denom >= 0.0 ) {
@@ -184,7 +180,7 @@ public:
 	      	status = 3;
 	   	}
 
-		/* Compute tangent plane coordinates (even in dubious cases) */
+		// Compute tangent plane coordinates (even in dubious cases)
 	   	xi  = ( cos_dec*sin_dRA ) / denom;
 	   	eta = ( sin_dec*cos_dec0 - cos_dec*sin_dec0*cos_dRA ) / denom;
 	}
@@ -206,7 +202,6 @@ public:
 		double atan 	= atan2(xi, denom) + ra0;
 		while (atan > 2.0*M_PI) atan -= 2.0*M_PI;
 		while (atan < 0.0)	  	atan += 2.0*M_PI;
-		double dec = atan2(sin_dec0 + eta*cos_dec0, sqrt(xi*xi + denom*denom)) * radToDeg;
 		c.setRadRA(atan);
 		c.setRadDEC( atan2(sin_dec0 + eta*cos_dec0, sqrt(xi*xi + denom*denom)) );
 	}
@@ -283,7 +278,6 @@ public:
 
 		while (statusX != 0 || statusY != 0 || statusZ != 0) {
 			degree++;
-			//printf("Incrementing degree to %d...\n", degree);
 			xCoeff = polyfit(time, x, degree, statusX);
 			yCoeff = polyfit(time, y, degree, statusY);
 			zCoeff = polyfit(time, z, degree, statusZ);

@@ -50,7 +50,7 @@ public:
 	*/
 	bool parsePlateString(const string& buffer) {
 		// plate suffix column
-		// if this isn't blank it indicates shenanigans while recording the image
+		// if this isn't blank, it indicates shenanigans while recording the image
 		// T = tracked shot, M = multiple shots, P = full-aperture prism (distorted)
 		if (buffer[7] == 'T' || buffer[7] == 'M' || buffer[7] == 'P') 
 			return false;
@@ -70,6 +70,7 @@ public:
 		    !isdigit(lst[2]) || 
 		    !isdigit(lst[3]))
 			return false;
+				
 		m_julian = convertDate(m_gregorian, lst);
 
 		// adding half of the exposure time to the julian date
@@ -77,6 +78,7 @@ public:
 		// the substring is in the format "mmmt" where t = tenth of a minute
 		m_exp = stod(buffer.substr(52,4))/14400.0;
 		m_julian += m_exp/2.0;
+
 		// plate quality grade, from A to C
 		m_grade = buffer[56];
 		// calculating the faintest apparent magnitude that would be visible on the plate
@@ -84,18 +86,6 @@ public:
 
 		return true;
 	}
-
-	/*
-		Prints out a plate object's info. Used for testing
-	*/
-	void printPlate() const {
-		printf("ID = %6d ", m_id);
-		printf("RA = %s ", m_coords.RAtoString().c_str());
-		printf("DEC = %s ", m_coords.DECtoString().c_str());
-		printf("GD = %s ", m_gregorian.c_str());
-		printf("JD = %.2f ", m_julian);
-		printf("Grade = \'%c\'\n", m_grade);
-	}	
 
 	/*
 		Checks whether the plate is missing from the plate archive room
@@ -128,7 +118,6 @@ public:
 		double ut = GSTtoUT(gst, julian);
 		double frac = (ut) / 24.0;
 		julian += frac;
-
 		return julian;
 	}
 
@@ -236,37 +225,6 @@ public:
 	}
 
 	/*
-		Prints all relevant info about a plate/ephemeris match
-	*/
-	static void printMatch(const Plate& p, const Coords& interp, const int count, const double mag, const pair<double,double>& start, const pair<double,double>& mid, const pair<double,double>& end) {
-
-		// coordinate conversion from xi/eta to x/y coordinates from bottom left of plate (in mm)
-		double x = radsToMM(mid.first);
-		double y = radsToMM(mid.second);
-
-		// calculating the drift distance between the start and end of exposure (in mm)
-		double dx = end.first  - start.first;
-		double dy = end.second - start.second;
-		double drift = sqrt(dx*dx + dy*dy);
-		Coords c = p.coords();
-
-		printf("%03d", count);
-		printf("\tplate ID       = %d\n", p.m_id);
-		printf("\tUT date        = %s\n", gregorianToString(p.m_gregorian).c_str());
-		printf("\tJulian date    = %.3f\n", p.m_julian);
-		printf("\tObject Coords  = (%.3f, %.3f) deg\n", interp.getDegRA(), interp.getDegDEC());
-		printf("\tPlate Coords   = (%.3f, %.3f) deg\n", c.getDegRA(), c.getDegDEC());
-		printf("\tStart Position = (%.2f, %.2f) mm\n", start.first, start.second);
-		printf("\tMid Position   = (%.2f, %.2f) mm\n", x, y);
-		printf("\tFinal Position = (%.2f, %.2f) mm\n", end.first, end.second);
-		printf("\tDrift length   = %.2f mm\n", drift);
-		printf("\tMagnitude      = %.2f\n", mag);
-		printf("\tPlate Grade    = %c\n", p.m_grade);
-		printf("\tExposure       = %.1f mins\n", p.m_exp*14400);
-		printf("--------------------------------------------------\n");
-	}
-
-	/*
 		Goes through all matched plates and prints the relevant info about them all
 		This is a LITTLE BIT OF A MESS but it works
 	*/
@@ -278,6 +236,7 @@ public:
 			double y = radsToMM(m.second);
 			middle.push_back({x, y});
 		}
+		const int SIZE = 42;	// defines width of each printed data box
 
 		for (int i = 0; i < int(p.size()); i += 2) {
 			if (p.size() % 2 == 1 && i == p.size() - 1) {
@@ -285,7 +244,6 @@ public:
 				printf("\tplate ID       = %d\n", p[i].id());
 				printf("\tUT date        = %s\n", gregorianToString(p[i].gregorian()).c_str());
 				printf("\tJulian date    = %.3f\n", p[i].julian());
-				printf("\tPlate Coords   = (%.3f, %.3f) deg\n", p[i].coords().getDegRA(), p[i].coords().getDegDEC());
 				printf("\tObject Coords  = (%.3f, %.3f) deg\n", c[i].getDegRA(), c[i].getDegDEC());
 				printf("\tPlate Position = (%.3f, %.3f) mm\n", middle[i].first, middle[i].second);
 				double dx = end[i].first  - start[i].first;
@@ -295,11 +253,9 @@ public:
 				printf("\tMagnitude      = %.2f\n", mag[i]);
 				printf("\tPlate Grade    = %c\n", p[i].grade());
 				printf("\tExposure       = %.1f mins\n", p[i].exposure()*1440);
-				printf("----------------------------------------------------\n");
+				printf("%s\n", string(SIZE*1.2, '-').c_str());
 			}
 			else {
-				const int SIZE = 42;	// defines width of each printed data box
-
 				stringstream ss;
 				char buffer0[50], buffer01[50], buffer1[50], buffer2[50];
 				sprintf(buffer0, "%03d", count[i]);
@@ -327,16 +283,6 @@ public:
 				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| " << buffer4 << '\n';
-				cout << ss.str();
-				ss.str("");
-				
-				char buffer5[50], buffer6[50];
-				sprintf(buffer5, "\tPlate Coords   = (%.3f, %.3f) deg", p[i].coords().getDegRA(), p[i].coords().getDegDEC());
-				sprintf(buffer6, "\tPlate Coords   = (%.3f, %.3f) deg", p[i+1].coords().getDegRA(), p[i+1].coords().getDegDEC());
-				ss << buffer5;
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << buffer6 << '\n';
 				cout << ss.str();
 				ss.str("");
 
@@ -406,9 +352,9 @@ public:
 				cout << string(SIZE*2.4, '-') << '\n';
 			}
 		}
-		// for (auto m : middle)	
-		// 	printf("%f %f\n", m.first, m.second);
-		return;
+		/*for (int i = 0; i < middle.size(); i++) {
+			printf("%d %.3f %.3f %.3f\n", p[i].id(), p[i].julian(), middle[i].first, middle[i].second);
+		}*/
 	}
 	
 	/*
