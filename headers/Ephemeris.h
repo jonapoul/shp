@@ -23,7 +23,12 @@ private:
 	double m_dDEC;		// 3sigma error in DEC in arcseconds
 
 public:
-	Ephemeris(double day=0.0, Coords c={}, double lst=0.0, double mag=0.0, double dra=0.0, double ddec=0.0)
+	Ephemeris(const double day=0.0, 
+	          const Coords c={}, 
+	          const double lst=0.0, 
+	          const double mag=0.0, 
+	          const double dra=0.0, 
+	          const double ddec=0.0)
 		: m_day(day), m_coords(c), m_lst(lst), m_mag(mag), m_dRA(dra), m_dDEC(ddec) { }
 	Ephemeris(const Ephemeris& e)
 		: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), m_mag(e.m_mag), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
@@ -45,8 +50,10 @@ public:
 		Takes a full ephemeris record string and pulls the info from it, such as julian day, 
 		RA/DEC coordinates (plus their errors), LST, apparent magnitude
 	*/
-	bool parseEphemerisString(const string& s, const bool isSurfBrt) {
-		if (s.length() == 0) return false;
+	bool parseEphemerisString(const string& s, 
+	                          const bool isSurfBrt) {
+		if (s.length() == 0) 
+			return false;
 		string s2 = s.substr(0,18) + s.substr(21);
 		stringstream ss(s2);
 		string temp, dRA_str, dDEC_str, lstStr, magStr;
@@ -71,7 +78,8 @@ public:
 		a vector of Ephemeris objects. The $$SOE and $$EOE tags signify the start and end of the 
 		data lines.
 	*/
-	static void readEphemerisFile(vector<Ephemeris>& eph, const string& filename) {
+	static void readEphemerisFile(vector<Ephemeris>& eph, 
+	                              string& filename) {
 		fs::path path;
 		bool fileDoesntExist = true;
 		for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
@@ -112,18 +120,22 @@ public:
 					canReadEntries = true;
 			}
 			ephemerisFile.close();
-		}
-		else {
+		} else {
 			cout << "Ephemeris file \"" << filename << "\" is not valid\n";
 			exit(1);
 		}
+		filename[0] = toupper(filename[0]);
 	}
 
 	/*
 		Linearly interpolates a floating point number between two points
 		Intended for apparent magnitude
 	*/
-	static double linInterp(const double mag0, const double t0, const double mag1, const double t1, const double t) {
+	static double linInterp(const double mag0, 
+	                        const double t0, 
+	                        const double mag1, 
+	                        const double t1, 
+	                        const double t) {
 		return mag0 + (t-t0)*(mag1-mag0)/(t1-t0);
 	}
 
@@ -133,7 +145,10 @@ public:
 
 		Used to find x/y values for polynomial least-squares fitting.
 	*/
-	static void findNearbyEphs(const vector<Ephemeris>& e, const int numCoords, const int i, vector<Coords>& c, vector<double>& t) {
+	static void findNearbyEphs(const vector<Ephemeris>& e, 
+	                           const int numCoords, 
+	                           const int i, 
+	                           vector<Coords>& c, vector<double>& t) {
 		size_t N = e.size();
 		if (i > N) {
 			cout << "Error in Ephemeris::findNearbyCoords(): index " << i << " > vector size " << N << ".\n";
@@ -147,28 +162,27 @@ public:
 		}
 	}
 
-	static void determineParameters(int argc, char* argv[], string& name, bool& couldntRead) {
+	/*
+		Takes the argument passed to the program and finds what ephemeris file to load by recursively searching through the ./ephemeris/ folder and testing if the argument exists as a .txt filename
+	*/
+	static void determineParameters(const int argc, 
+	                                char* argv[], 
+	                                string& name) {
 		name = "";
 		if (argc < 2) {
-			name = "ceres";
+			name = printFiles();
 			return;
 		}
 		string param = string(argv[1]);
-		if (param == "-files") {
-			name = printFiles();
-			couldntRead = false;
-			return;
-		}
 		for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
 			fs::path file = itr.path().string() +  '/' + param + ".txt";
 			if (fs::exists(file)) {
 				name = param;
-				couldntRead = false;
 				return;
 			}
 		}
-		name = "ceres";
-		couldntRead = true;
+		// if the argument doesnt exist as a filename, default to Ceres and pass a flag back to the main program
+		name = printFiles();
 	}
 
 	static string printFiles() {

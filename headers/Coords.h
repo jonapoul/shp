@@ -1,23 +1,9 @@
 #ifndef COORDS_H
 #define COORDS_H
-/*
-	This ifdef bit is to silence some Boost errors
-	Robbed from http://www.vilipetek.com/2013/10/07/polynomial-fitting-in-c-using-boost/
-*/
-#ifdef BOOST_UBLAS_TYPE_CHECK
-#undef BOOST_UBLAS_TYPE_CHECK
-#endif
-#define BOOST_UBLAS_TYPE_CHECK 0
-#ifndef _USE_MATH_DEFINES
-#define _USE_MATH_DEFINES
-#endif
-
 #include <iostream>
 #include <vector>
 #include <string>
 #include <math.h>
-#include <boost/numeric/ublas/matrix.hpp>
-#include <boost/numeric/ublas/lu.hpp>
 using namespace std;
 
 class Coords {
@@ -30,7 +16,8 @@ private:
 	static constexpr double radToDeg = 180.0/M_PI;
 
 public:
-	Coords(const double degRA = 0.0, const double degDEC = 0.0)
+	Coords(const double degRA = 0.0, 
+	       const double degDEC = 0.0)
 			: m_degRA(degRA), m_degDEC(degDEC) { 
 		m_radRA = degRA*degToRad; 
 		m_radDEC = degDEC*degToRad; 
@@ -125,7 +112,8 @@ public:
 	/*
 		Calculates the cosine of the angular distance between two spherical coordinates
 	*/
-	static double cosAngularDistance(const Coords& a, const Coords& b) {
+	static double cosAngularDistance(const Coords& a, 
+	                                 const Coords& b) {
 		return sin(a.m_radDEC)*sin(b.m_radDEC) + cos(a.m_radDEC)*cos(b.m_radDEC)*cos(a.m_radRA - b.m_radRA);
 	}
 
@@ -133,7 +121,9 @@ public:
 		Calculating the angular distance between two spherical points.
 		Defaults to output in degrees
 	*/
-	static double angularDistance(const Coords& a, const Coords& b, const bool inDegrees = true) {
+	static double angularDistance(const Coords& a, 
+	                              const Coords& b, 
+	                              const bool inDegrees = true) {
 		return acos(cosAngularDistance(a, b)) * (inDegrees ? radToDeg : 1.0);
 	}
 
@@ -149,7 +139,11 @@ public:
 											2 = error, antistar on tangent plane
 											3 = error, antistar too far from axis
 	*/
-	static void gnomonic(const Coords& c, const Coords& c0, double& xi, double& eta, int& status) {
+	static void gnomonic(const Coords& c, 
+	                     const Coords& c0, 
+	                     double& xi, 
+	                     double& eta, 
+	                     int& status) {
 		double ra   = c.m_radRA;
 		double dec  = c.m_radDEC;
 		double ra0  = c0.m_radRA;
@@ -193,7 +187,10 @@ public:
 		Returned:
 			c 			Coords   spherical coordinates of the point at (xi,eta)
 	*/
-	static void inverseGnomonic(const double xi, const double eta, const Coords& c0, Coords& c) {
+	static void inverseGnomonic(const double xi, 
+	                            const double eta, 
+	                            const Coords& c0, 
+	                            Coords& c) {
 		double dec0 	= c0.m_radDEC;
 		double ra0  	= c0.m_radRA;
 		double sin_dec0 = sin(dec0);
@@ -209,7 +206,10 @@ public:
 	/*
 		Converts spherical RA/DEC coordinates into 3D cartesian coordinates, assuming unit sphere
 	*/
-	static void toCartesian(const Coords &c, double &x, double &y, double &z) {
+	static void toCartesian(const Coords &c, 
+	                        double &x, 
+	                        double &y, 
+	                        double &z) {
 		double ra  = c.m_radRA;
 		double dec = c.m_radDEC;
 		x = cos(dec) * cos(ra);
@@ -220,7 +220,10 @@ public:
 	/*
 		Converts 3D cartesian coordinates to spherical RA/DEC, assuming unit sphere
 	*/
-	static void toSpherical(const double x, const double y, const double z, Coords& c) {
+	static void toSpherical(const double x, 
+	                        const double y, 
+	                        const double z, 
+	                        Coords& c) {
 		double ra = atan2(y, x);
 		while (ra < 0.0) 		ra += 2.0*M_PI;
 		while (ra > 2.0*M_PI) 	ra -= 2.0*M_PI;
@@ -235,7 +238,11 @@ public:
 		3. Normalise each value
 		4. Transform back to spherical polars
 	*/
-	static Coords linInterp(const Coords& c0, const double t0, const Coords& c1, const double t1, const double t) {
+	static Coords linInterp(const Coords& c0, 
+	                        const double t0, 
+	                        const Coords& c1, 
+	                        const double t1, 
+	                        const double t) {
 		double x0, y0, z0, x1, y1, z1;
 		toCartesian(c0, x0, y0, z0);
 		toCartesian(c1, x1, y1, z1);

@@ -8,6 +8,7 @@
 #include <utility>
 #include <boost/algorithm/string.hpp>
 #include "Coords.h"
+#include "Ephemeris.h"
 using namespace std;
 
 #define PLATE_SIZE 354.5
@@ -18,12 +19,18 @@ private:
 	Coords m_coords;		// combines RA and DEC to one object
 	string m_gregorian;		// UT gregorian date string, formatted as yymmdd
 	double m_julian;		// julian date in the middle of exposure
-	double m_exp;			// exposure time in seconds
+	double m_exp;			// exposure time in days
 	char m_grade;			// graded plate quality, A being best and C being worst
 	double m_magLimit;		// faintest object that can be seen on the plate, decided by the emulsion/filter/etc
 
 public:
-	Plate(const int num=0, const Coords& c={}, const string& g="", const double j=0.0, const double exp=0.0, const char grade=' ', const double lim=0.0)
+	Plate(const int num=0, 
+	      const Coords& c={}, 
+	      const string& g="", 
+	      const double j=0.0, 
+	      const double exp=0.0, 
+	      const char grade=' ', 
+	      const double lim=0.0)
 		: m_id(num), m_coords(c), m_gregorian(g), m_julian(j), m_exp(exp), m_grade(grade), m_magLimit(lim) { }
 	Plate(const Plate& p)
 		: m_id(p.m_id), m_coords(p.m_coords), m_gregorian(p.m_gregorian), m_julian(p.m_julian), m_exp(p.m_exp), m_grade(p.m_grade), m_magLimit(p.m_magLimit) { }
@@ -90,9 +97,9 @@ public:
 	/*
 		Checks whether the plate is missing from the plate archive room
 	*/
-	static bool plateIsMissing(const Plate& p, const vector<int>& blacklist) {
+	bool isMissing(const vector<int>& blacklist) {
 		for (int id : blacklist) {
-			if (p.id() == id) return true;
+			if (this->id() == id) return true;
 		}
 		return false;
 	}
@@ -104,7 +111,8 @@ public:
 
 		From "Practical Astronomy with your Calculator or Spreadsheet"
 	*/
-	static double convertDate(const string& gregorianDate, const string& lst) {
+	static double convertDate(const string& gregorianDate, 
+	                          const string& lst) {
 		int year = stoi(gregorianDate.substr(0, 2));
 		if (year < 100)
 			year += (year < 17) ? 2000 : 1900;
@@ -124,7 +132,9 @@ public:
 	/*
 		Converts a UT Gregorian date to a floating point Julian date
 	*/
-	static double gregorianToJulian(double day, int month, int year) {
+	static double gregorianToJulian(const double day, 
+	                                int month, 
+	                                int year) {
 		if (month < 3) { 
 			year--; 
 			month += 12; 
@@ -175,7 +185,10 @@ public:
 	/*
 		Takes the LST at Siding Springs observatory and returns the Greenwich Sidereal Time
 	*/
-	static double LSTtoGST(const int hour, const int min, const double sec, const double longitude) {
+	static double LSTtoGST(const int hour, 
+	                       const int min, 
+	                       const double sec, 
+	                       const double longitude) {
 		double lstDecimal = hour + (min/60.0) + (sec/3600.0);
 		double longitudeHours = longitude/15.0; 	// decimal hours
 		double gst = lstDecimal - longitudeHours;
@@ -188,7 +201,8 @@ public:
 		Converts decimal Greenwich Sidereal Time to decimal Universal Time
 		Also uses the precalculated julian date
 	*/
-	static double GSTtoUT(const double gst, const double JD) {
+	static double GSTtoUT(const double gst, 
+	                      const double JD) {
 		double S = JD - 2451545;
 		double T = S / 36525.0;
 		double T0 = 6.697374558 + (2400.051336 * T) + (0.000025862 * T * T);
@@ -205,7 +219,8 @@ public:
 		Takes a Plate array reference and a filename
 		Opens the filename and reads all valid plate records into the array
 	*/
-	static void readPlateCatalog(vector<Plate>& plates, const string& filename) {
+	static void readPlateCatalog(vector<Plate>& plates, 
+	                             const string& filename) {
 		ifstream platesFile(filename);
 		if (platesFile.is_open()) {
 			while (!platesFile.eof()) {
@@ -228,7 +243,15 @@ public:
 		Goes through all matched plates and prints the relevant info about them all
 		This is a LITTLE BIT OF A MESS but it works
 	*/
-	static void printMatches(const vector<Plate>& p, const vector<Coords>& c, const vector<int>& count, const vector<double>& mag, const vector<pair<double,double>>& start, const vector<pair<double,double>>& mid, const vector<pair<double,double>>& end) {
+	static void printMatches(const vector<Plate>& p, 
+	                         const vector<Coords>& c, 
+	                         const vector<int>& count, 
+	                         const vector<double>& mag, 
+	                         const vector<double>& magLim, 
+	                         const vector<pair<double,double>>& start, 
+	                         const vector<pair<double,double>>& mid, 
+	                         const vector<pair<double,double>>& end, 
+	                         const vector<double> snr) {
 
 		vector<pair<double,double>> middle;
 		for (auto m : mid) {
@@ -250,9 +273,10 @@ public:
 				double dy = end[i].second - start[i].second;
 				double drift = sqrt(dx*dx + dy*dy);
 				printf("\tDrift length   = %.2f mm\n", drift);
-				printf("\tMagnitude      = %.2f\n", mag[i]);
+				printf("\tMagnitude      = %.2f (%.2f)\n", mag[i], magLim[i]);
 				printf("\tPlate Grade    = %c\n", p[i].grade());
 				printf("\tExposure       = %.1f mins\n", p[i].exposure()*1440);
+				printf("\tSignalToNoise  = %.2f\n", snr[i]);
 				printf("%s\n", string(SIZE*1.2, '-').c_str());
 			}
 			else {
@@ -311,8 +335,8 @@ public:
 				double dy = end[i].second - start[i].second;
 				double drift = sqrt(dx*dx + dy*dy);
 				sprintf(buffer15, "\tDrift length   = %.2f mm", drift);
-				dx = end[i].first  - start[i].first;
-				dy = end[i].second - start[i].second;
+				dx = end[i+1].first  - start[i+1].first;
+				dy = end[i+1].second - start[i+1].second;
 				drift = sqrt(dx*dx + dy*dy);
 				sprintf(buffer16, "\tDrift length   = %.2f mm", drift);
 				ss << buffer15;
@@ -322,9 +346,23 @@ public:
 				cout << ss.str();
 				ss.str("");
 
+				char buffer5[50], buffer6[50];
+				dx = end[i].first  - start[i].first;
+				dy = end[i].second - start[i].second;
+				sprintf(buffer5, "\tDrift vector   = (%.2f, %.2f)", dx, dy);
+				dx = end[i+1].first  - start[i+1].first;
+				dy = end[i+1].second - start[i+1].second;
+				sprintf(buffer6, "\tDrift vector   = (%.2f, %.2f)", dx, dy);
+				ss << buffer5;
+				length = SIZE-ss.str().length();
+				ss << string(length, ' ');
+				ss << "|" << buffer6 << '\n';
+				cout << ss.str();
+				ss.str("");
+
 				char buffer17[50], buffer18[50];
-				sprintf(buffer17, "\tMagnitude      = %.2f", mag[i]);
-				sprintf(buffer18, "\tMagnitude      = %.2f", mag[i+1]);
+				sprintf(buffer17, "\tMagnitude      = %.2f (%.2f)", mag[i], magLim[i]);
+				sprintf(buffer18, "\tMagnitude      = %.2f (%.2f)", mag[i+1], magLim[i+1]);
 				ss << buffer17;
 				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
@@ -349,12 +387,22 @@ public:
 				cout << ss.str();
 				ss.str("");
 
+				char buffer21[50], buffer22[50];
+				sprintf(buffer21, "\tSignalToNoise  = %.2f", snr[i]);
+				sprintf(buffer22, "\tSignalToNoise  = %.2f", snr[i+1]);
+				ss << buffer21;
+				length = SIZE-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer22 << '\n';
+				cout << ss.str();
+				ss.str("");
+
 				cout << string(SIZE*2.4, '-') << '\n';
 			}
 		}
-		for (int i = 0; i < middle.size(); i++) {
-			printf("%d %.3f %.3f %.3f\n", p[i].id(), p[i].julian(), middle[i].first, middle[i].second);
-		}
+		/*for (int i = 0; i < middle.size(); i++) {
+			printf("%d %.3f (%.3f %.3f) (%.3f %.3f) (%.3f %.3f)\n", p[i].id(), p[i].julian(), start[i].first, start[i].second, middle[i].first, middle[i].second, end[i].first, end[i].second);
+		}*/
 	}
 	
 	/*
@@ -407,8 +455,11 @@ public:
 		This is to account for the potential dragging across the image for longer exposure times.
 		Returns the values as an std::pair<double> object, with xi as first and eta in second
 	*/
-	static void exposureBoundaries(const Plate& p, const vector<Coords>& coords, const vector<double>& times, 
-	                               pair<double, double>& start, pair<double, double>& end) {
+	static void exposureBoundaries(const Plate& p, 
+	                               const vector<Coords>& coords, 
+	                               const vector<double>& times, 
+	                               pair<double, double>& start, 
+	                               pair<double, double>& end) {
 		double expTime   = p.exposure();
 		double startTime = p.julian() - (expTime/2.0);
 		double endTime   = p.julian() + (expTime/2.0);
@@ -440,6 +491,70 @@ public:
 		return (mm - (PLATE_SIZE / 2.0)) * (67.12 * M_PI) / (3600.0 * 180.0);
 	}
 
+	static void printMissingAndFaint(const vector<unsigned>& missingPlate, 
+	                                 const vector<unsigned>& tooFaint, 
+	                                 const vector<unsigned>& tooLowSNR,
+	                                 const int matchCount, 
+	                                 const double closest) {
+		int missingPlateCount = missingPlate.size(); 
+		int tooFaintCount     = tooFaint.size();
+		int tooLowSNRCount    = tooLowSNR.size();
+		if (tooFaintCount > 0) {
+			cout << tooFaintCount << (matchCount>0 ? " other" : "") << " plate" << (tooFaintCount==1 ? "" : "s");
+			cout << " matched, but " << (tooFaintCount==1 ? "was" : "were") << " too faint to show up on the plate:\n\t";
+			for (int j = 0; j < tooFaintCount; j++) {
+				printf("%5d ", tooFaint[j]);
+				if ((j+1) % 5 == 0) cout << "\n\t";
+			}
+			cout << endl;
+		} if (missingPlateCount > 0) {
+			cout << missingPlateCount << (matchCount>0 ? " other" : "") << " plate" << (missingPlateCount==1 ? "" : "s");
+			cout << " matched, but " << (missingPlateCount==1 ? "isn't" : "aren't") << " in the plate room:\n\t";
+			for (int j = 0; j < missingPlateCount; j++) {
+				printf("%5d ", missingPlate[j]);
+				if ((j+1) % 5 == 0) cout << "\n\t";
+			}
+			cout << endl;
+		} if (tooLowSNRCount > 0) {
+			cout << tooLowSNRCount << (matchCount>0 ? " other" : "") << " plate" << (tooLowSNRCount==1 ? "" : "s");
+			cout << " matched, but have a low Signal-To-Noise ratio:\n\t";
+			for (int j = 0; j < tooLowSNRCount; j++) {
+				printf("%5d ", tooLowSNR[j]);
+				if ((j+1) % 5 == 0) cout << "\n\t";
+			}
+			cout << endl;		} if (tooFaintCount == 0 && matchCount == 0 && missingPlateCount == 0) {
+			printf("Closest approach was %.3f degrees from plate centre\n", closest);
+		}
+	}
+
+	static void printSummary(const double firstEphDate, 
+	                         const double lastEphDate, 
+	                         const int matchCount, 
+	                         const string& objectName) {
+		string firstDate = Plate::julianToGregorian(firstEphDate);
+		string lastDate  = Plate::julianToGregorian(lastEphDate);
+		string s = objectName;
+		for (int i = 0; i < s.length(); i++) s[i] = toupper(objectName[i]);
+		if (matchCount > 0) {
+			cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << objectName;
+			cout << " between " << firstDate << " and " << lastDate << '\n';
+		} else {
+			cout << "No matches found for " << objectName << "!\n";
+		}
+	}
+
+	/*
+		Calculates an arbitrary signal-to-noise ratio, relative to a base magnitude and base count rate
+	*/
+	static double signalToNoiseRatio(const double magnitude, 
+	                                 const double exposure, 
+	                                 const double baseMagnitude = 20.0, 
+	                                 const double baseCountRate = 1.0) {
+		double countRate = baseCountRate * pow(10.0, (baseMagnitude-magnitude)/2.5);
+
+		// multiplied by 86400 to convert exposure from days to seconds
+		return sqrt(countRate * exposure * 86400);
+	}
 };
 
 #endif
