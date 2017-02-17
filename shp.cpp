@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
 
 	chrono::time_point<chrono::system_clock> start = chrono::system_clock::now();
 
-	// an array of plate IDs that I couldn't find in the archive room
+	// an array of plate IDs that I couldn't find in the archive room, just so i can disregard any matches with these
 	vector<int> blacklist = {4910, 14587, 15320, 17266};
 	// reading all valid plate records
 	vector<Plate> plates;
@@ -135,14 +135,17 @@ int main(int argc, char* argv[]) {
 
 
 // TO DO
-	// TEST NEREUS, IT HAS ONE AT 17.75 MAG
+	// look at data reduction manual for what i'll be doing after
+		// precision?
+
+	// option to print out all known matches of comets
+		// print a short summary of each file
+		// number total matches, number legit, number too faint, number low SNR
+
+	// supercosmos catalogue download for images
 		// downloaded a fits file of plate 7233, it's backwards in the x direction but otherwise ok
 		// need to load it into gaia to check ra/dec accuracy
-	// magnitude scaling using signal to noise over time
-	// look at data reduction manual for what i'll be doing after
-		// precision 
-	// supercosmos catalogue download for images
-	// scale magnitude limits based on exposure times (logarithmically?)
+
 	// try to incorporate the errors in RA/DEC from the ephemeris somewhere
 		// rough estimate for error region on the plate
 		// use this to pipe back more accurate measurements to minor planet centre maybe?

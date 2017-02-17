@@ -271,15 +271,14 @@ public:
 				printf("\tPlate Position = (%.3f, %.3f) mm\n", middle[i].first, middle[i].second);
 				double dx = end[i].first  - start[i].first;
 				double dy = end[i].second - start[i].second;
-				double drift = sqrt(dx*dx + dy*dy);
-				printf("\tDrift length   = %.2f mm\n", drift);
+				printf("\tDrift length   = %.2f mm\n", sqrt(dx*dx + dy*dy));
+				printf("\tDrift vector   = (%.2f, %.2f)\n", dx, dy);
 				printf("\tMagnitude      = %.2f (%.2f)\n", mag[i], magLim[i]);
 				printf("\tPlate Grade    = %c\n", p[i].grade());
 				printf("\tExposure       = %.1f mins\n", p[i].exposure()*1440);
 				printf("\tSignalToNoise  = %.2f\n", snr[i]);
 				printf("%s\n", string(SIZE*1.2, '-').c_str());
-			}
-			else {
+			} else {
 				stringstream ss;
 				char buffer0[50], buffer01[50], buffer1[50], buffer2[50];
 				sprintf(buffer0, "%03d", count[i]);
@@ -499,28 +498,28 @@ public:
 		int missingPlateCount = missingPlate.size(); 
 		int tooFaintCount     = tooFaint.size();
 		int tooLowSNRCount    = tooLowSNR.size();
-		if (tooFaintCount > 0) {
-			cout << tooFaintCount << (matchCount>0 ? " other" : "") << " plate" << (tooFaintCount==1 ? "" : "s");
-			cout << " matched, but " << (tooFaintCount==1 ? "was" : "were") << " too faint to show up on the plate:\n\t";
-			for (int j = 0; j < tooFaintCount; j++) {
-				printf("%5d ", tooFaint[j]);
-				if ((j+1) % 5 == 0) cout << "\n\t";
-			}
-			cout << endl;
-		} if (missingPlateCount > 0) {
-			cout << missingPlateCount << (matchCount>0 ? " other" : "") << " plate" << (missingPlateCount==1 ? "" : "s");
+		if (missingPlateCount > 0) {
+			cout << missingPlateCount << (matchCount>0?" other":"") << " plate" << (missingPlateCount==1?"":"s");
 			cout << " matched, but " << (missingPlateCount==1 ? "isn't" : "aren't") << " in the plate room:\n\t";
 			for (int j = 0; j < missingPlateCount; j++) {
 				printf("%5d ", missingPlate[j]);
-				if ((j+1) % 5 == 0) cout << "\n\t";
+				if ((j+1) % 5 == 0 && (j+1) < missingPlateCount) cout << "\n\t";
+			}
+			cout << endl;
+		} if (tooFaintCount > 0) {
+			cout << tooFaintCount << (missingPlateCount>0||matchCount>0 ? " other" : "") << " plate" << (tooFaintCount==1 ? "" : "s");
+			cout << " matched, but " << (tooFaintCount==1 ? "was" : "were") << " too faint to show up on the plate:\n\t";
+			for (int j = 0; j < tooFaintCount; j++) {
+				printf("%5d ", tooFaint[j]);
+				if ((j+1) % 5 == 0 && (j+1) < tooFaintCount) cout << "\n\t";
 			}
 			cout << endl;
 		} if (tooLowSNRCount > 0) {
-			cout << tooLowSNRCount << (matchCount>0 ? " other" : "") << " plate" << (tooLowSNRCount==1 ? "" : "s");
-			cout << " matched, but have a low Signal-To-Noise ratio:\n\t";
+			cout << tooLowSNRCount << (missingPlateCount>0||matchCount>0||matchCount>0||tooFaintCount>0 ? " other" : "") << " plate" << (tooLowSNRCount==1 ? "" : "s");
+			cout << " matched, but ha" << (tooLowSNRCount > 1 ? "ve" : "s") << " a low Signal-To-Noise ratio:\n\t";
 			for (int j = 0; j < tooLowSNRCount; j++) {
 				printf("%5d ", tooLowSNR[j]);
-				if ((j+1) % 5 == 0) cout << "\n\t";
+				if ((j+1) % 5 == 0 && (j+1) < tooLowSNRCount) cout << "\n\t";
 			}
 			cout << endl;		} if (tooFaintCount == 0 && matchCount == 0 && missingPlateCount == 0) {
 			printf("Closest approach was %.3f degrees from plate centre\n", closest);
@@ -536,10 +535,10 @@ public:
 		string s = objectName;
 		for (int i = 0; i < s.length(); i++) s[i] = toupper(objectName[i]);
 		if (matchCount > 0) {
-			cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << objectName;
+			cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << s;
 			cout << " between " << firstDate << " and " << lastDate << '\n';
 		} else {
-			cout << "No matches found for " << objectName << "!\n";
+			cout << "No matches found for " << s << "!\n";
 		}
 	}
 

@@ -186,7 +186,7 @@ public:
 	}
 
 	static string printFiles() {
-		vector<string> comets, planets;
+		vector<string> comets, planets, useless;
 		// picking up all filenames from tboth folders
 		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/comets")) {
 			if (is_regular_file(itr.path())) comets.push_back(itr.path().stem().string());
@@ -194,14 +194,18 @@ public:
 		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/planets")) {
 			if (is_regular_file(itr.path())) planets.push_back(itr.path().stem().string());
 		}
+		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/useless")) {
+			if (is_regular_file(itr.path())) useless.push_back(itr.path().stem().string());
+		}
 		sort(planets.begin(), planets.end(), less<string>());
 		sort(comets.begin(),  comets.end(),  less<string>());
+		sort(useless.begin(), useless.end(), less<string>());
 		
-
-		// finding the length of the longest filename
+		// finding the length of the longest filename, to help with output formatting
 		size_t maxLength = 0;
 		for (auto p : planets) maxLength = (p.length() > maxLength) ? p.length() : maxLength;
 		for (auto c : comets)  maxLength = (c.length() > maxLength) ? c.length() : maxLength;
+		for (auto u : useless) maxLength = (u.length() > maxLength) ? u.length() : maxLength;
 
 		// printing all the file options
 		cout << "   Planets:\n";
@@ -222,6 +226,15 @@ public:
 				cout << '\t' << comets[j+2] << string(maxLength+2-comets[j+2].length(), ' ');
 			cout << '\n';
 		}
+		cout << "\n   Useless:\n";
+		for (size_t j = 0; j < useless.size(); j += 3) {
+			cout << '\t' << useless[j] << string(maxLength+2-useless[j].length(), ' ');
+			if (j+1 < useless.size()) 
+				cout << '\t' << useless[j+1] << string(maxLength+2-useless[j+1].length(), ' ');
+			if (j+2 < useless.size())
+				cout << '\t' << useless[j+2] << string(maxLength+2-useless[j+2].length(), ' ');
+			cout << '\n';
+		}
 
 		// taking input from the user
 		cout << "\nEnter option: ";
@@ -232,6 +245,7 @@ public:
 		while (!choiceIsValid) {
 			for (auto p : planets) if (p == output) choiceIsValid = true;
 			for (auto c : comets)  if (c == output) choiceIsValid = true;
+			for (auto u : useless) if (u == output) choiceIsValid = true;
 			if (!choiceIsValid) {
 				cout << "That file doesn't exist, try again: ";
 				cin >> output;
