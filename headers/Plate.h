@@ -22,6 +22,7 @@ private:
 	double m_exp;			// exposure time in secs
 	char m_grade;			// graded plate quality, A being best and C being worst
 	double m_countLimit;	// lowest number of photon counts on a plate below which an object isn't visible
+	int m_filterWL;			// peak wavelength in angstroms
 
 public:
 	Plate(const int num=0, 
@@ -30,10 +31,11 @@ public:
 	      const double j=0.0, 
 	      const double exp=0.0, 
 	      const char grade=' ', 
-	      const double lim=0.0)
-		: m_id(num), m_coords(c), m_gregorian(g), m_julian(j), m_exp(exp), m_grade(grade), m_countLimit(lim) { }
+	      const double lim=0.0,
+	      const int wl=0)
+		: m_id(num), m_coords(c), m_gregorian(g), m_julian(j), m_exp(exp), m_grade(grade), m_countLimit(lim), m_filterWL(wl) { }
 	Plate(const Plate& p)
-		: m_id(p.m_id), m_coords(p.m_coords), m_gregorian(p.m_gregorian), m_julian(p.m_julian), m_exp(p.m_exp), m_grade(p.m_grade), m_countLimit(p.m_countLimit) { }
+		: m_id(p.m_id), m_coords(p.m_coords), m_gregorian(p.m_gregorian), m_julian(p.m_julian), m_exp(p.m_exp), m_grade(p.m_grade), m_countLimit(p.m_countLimit), m_filterWL(p.m_filterWL) { }
 
 	inline int id() const { return m_id; };
 	inline Coords coords() const { return m_coords; };
@@ -42,6 +44,7 @@ public:
 	inline double exposure() const { return m_exp; }
 	inline char grade() const { return m_grade; };
 	inline double countLimit() const { return m_countLimit; }
+	inline int wavelength() const { return m_filterWL; }
 	inline void setID(const int id) { m_id = id; };
 	inline void setCoords(const Coords& c) { m_coords = c; };
 	inline void setGregorian(const string& g) { m_gregorian = g; }
@@ -49,6 +52,7 @@ public:
 	inline void setExposure(const double e) { m_exp = e; }
 	inline void setGrade(const char grade) { m_grade = grade; };
 	inline void setCountLimit(const double lim) { m_countLimit = lim; }
+	inline void setWavelength(const int wl) { m_filterWL = wl; }
 
 	/*
 		Reads a line from the plate catalog file and fills in the relevant fields of the Plate object
@@ -93,6 +97,12 @@ public:
 		m_grade = buffer[56];
 		// calculating the faintest apparent magnitude that would be visible on the plate
 		m_countLimit = limitingCounts(buffer);
+		
+		// filter wavelength
+		string prefix = buffer.substr(0, 2);
+		string filter = buffer.substr(46, 6);
+		boost::algorithm::trim(filter);
+		m_filterWL = findWavelength(prefix, filter);
 
 		// if no problems were found at any point, return true
 		return true;
@@ -127,7 +137,7 @@ public:
 		int mins  = stoi(lst.substr(2, 2));
 
 		double julian = gregorianToJulian(double(day), month, year);
-		double gst = LSTtoGST(hour, mins, 0.0, 149.0644);//149.07);
+		double gst = LSTtoGST(hour, mins, 0.0, 149.0644);
 		double ut = GSTtoUT(gst, julian);
 		double frac = (ut) / 24.0;
 		julian += frac;
@@ -306,12 +316,12 @@ public:
 			sprintf(buffer1, "%03d", count[i]);
 			sprintf(buffer2, "\tplate ID       = %d", p[i].id());
 			ss << buffer1 << buffer2;
+			length = SIZE-ss.str().length();
+			ss << string(length+3, ' ') << "| ";
 			if (canPrint) {
-				length = SIZE-ss.str().length();
-				ss << string(length+3, ' ');
 				sprintf(buffer3, "%03d", count[i+1]);
 				sprintf(buffer4, "\tplate ID       = %d", p[i+1].id());
-				ss << "| " << buffer3 << buffer4;
+				ss << buffer3 << buffer4;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -319,10 +329,10 @@ public:
 			// UT Date
 			ss << "\tUT date/time   = " << gregorianToString(p[i].gregorian());
 			ss << ", " << julianToUT(p[i].julian());
+			length = SIZE-ss.str().length();
+			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << "\tUT date        = " << gregorianToString(p[i+1].gregorian());
+				ss << "\tUT date        = " << gregorianToString(p[i+1].gregorian());
 				ss << ", " << julianToUT(p[i+1].julian());
 			}
 			cout << ss.str() << '\n';
@@ -330,13 +340,13 @@ public:
 
 			// Julian Date
 			char buffer5[50], buffer6[50];
-			sprintf(buffer5, "\tJulian date    = %.3f", p[i].julian());
+			sprintf(buffer5, "\tJulian date    = %.5f", p[i].julian());
 			ss << buffer5;
+			length = SIZE-ss.str().length();
+			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				sprintf(buffer6, "\tJulian date    = %.3f", p[i+1].julian());
-				ss << "| " << buffer6;
+				sprintf(buffer6, "\tJulian date    = %.5f", p[i+1].julian());
+				ss << buffer6;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -345,11 +355,11 @@ public:
 			char buffer7[50], buffer8[50];
 			sprintf(buffer7, "\tObject Coords  = (%.3f, %.3f) deg", c[i].getDegRA(), c[i].getDegDEC());
 			ss << buffer7;
+			length = SIZE-ss.str().length();
+			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
 				sprintf(buffer8, "\tObject Coords  = (%.3f, %.3f) deg", c[i+1].getDegRA(), c[i+1].getDegDEC());
-				ss << "| " << buffer8;
+				ss << buffer8;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -358,11 +368,11 @@ public:
 			char buffer9[50], buffer10[50];
 			sprintf(buffer9, "\tPlate Position = (%.3f, %.3f) mm", middle[i].first, middle[i].second);
 			ss << buffer9;
+			length = SIZE-ss.str().length();
+			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
 				sprintf(buffer10, "\tPlate Position = (%.3f, %.3f) mm", middle[i+1].first, middle[i+1].second);
-				ss << "| " << buffer10;
+				ss << buffer10;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -375,23 +385,23 @@ public:
 			sprintf(buffer11, "\tDrift length   = %.2f mm", drift);
 			sprintf(buffer13, "\tDrift vector   = (%.2f, %.2f)", dx, dy);
 			ss << buffer11;
+			length = SIZE-ss.str().length();
+			ss << string(length, ' ') << "| ";
 			if (canPrint) {
 				dx = end[i+1].first  - start[i+1].first;
 				dy = end[i+1].second - start[i+1].second;
 				drift = sqrt(dx*dx + dy*dy);
 				sprintf(buffer12, "\tDrift length   = %.2f mm", drift);
 				sprintf(buffer14, "\tDrift vector   = (%.2f, %.2f)", dx, dy);
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << buffer12;
+				ss << buffer12;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
 			ss << buffer13;
+			length = SIZE-ss.str().length();
+			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << buffer14;
+				ss << buffer14;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -400,21 +410,21 @@ public:
 			char buffer15[50], buffer16[50];
 			sprintf(buffer15, "\tMagnitude      = %.2f", mag[i]);
 			ss << buffer15;
+			length = SIZE-ss.str().length();
+			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
 				sprintf(buffer16, "\tMagnitude      = %.2f", mag[i+1]);
-				ss << "| " << buffer16;
+				ss << buffer16;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
 
 			// Plate quality grade
 			ss << "\tPlate Grade    = " << p[i].grade();
+			length = SIZE-ss.str().length();
+			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| \tPlate Grade    = " << p[i+1].grade();
+				ss << "\tPlate Grade    = " << p[i+1].grade();
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -423,11 +433,11 @@ public:
 			char buffer17[50], buffer18[50];
 			sprintf(buffer17, "\tExposure       = %.1f mins", p[i].exposure() / 60.0);
 			ss << buffer17;
+			length = SIZE-ss.str().length();
+			ss << string(length, ' ') << "| ";
 			if (canPrint) {
 				sprintf(buffer18, "\tExposure       = %.1f mins", p[i+1].exposure() / 60.0);
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << buffer18;
+				ss << buffer18;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -436,18 +446,34 @@ public:
 			char buffer19[50], buffer20[50];
 			double snr1 = Ephemeris::counts(p[i].exposure(), mag[i]) / p[i].countLimit();
 			double snr2 = Ephemeris::counts(p[i+1].exposure(), mag[i+1]) / p[i+1].countLimit();
-			sprintf(buffer19, "\tSNR            = %.2f", snr1);
+			sprintf(buffer19, "\tSNR            = %.4f", snr1);
 			ss << buffer19;
+			length = SIZE-ss.str().length();
+			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer20, "\tSNR            = %.2f", snr2);
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << buffer20;
+				sprintf(buffer20, "\tSNR            = %.4f", snr2);
+				ss << buffer20;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
 
-			cout << string(SIZE*2.4, '-') << '\n';
+			// Plate filter peak wavelength
+			char buffer21[50], buffer22[50];
+			sprintf(buffer21, "\tFilter λ peak  = %d Å", p[i].wavelength());
+			ss << buffer21;
+			length = SIZE-ss.str().length();
+			ss << string(length+2, ' ') << "| ";
+			if (canPrint) {
+				sprintf(buffer22, "\tFilter λ peak  = %d Å", p[i].wavelength());
+				ss << buffer22;
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
+
+			if (canPrint)
+				cout << string(SIZE*2.4, '-') << '\n';
+			else
+				cout << string(SIZE*1.2, '-') << '\n';
 		}
 		/*for (int i = 0; i < middle.size(); i++) {
 			printf("%d %.3f (%.3f %.3f) (%.3f %.3f) (%.3f %.3f)\n", p[i].id(), p[i].julian(), start[i].first, start[i].second, middle[i].first, middle[i].second, end[i].first, end[i].second);
@@ -574,7 +600,8 @@ public:
 	static void printMissingAndFaint(const vector<unsigned>& missingPlate, 
 	                                 const vector<unsigned>& tooFaint, 
 	                                 const int matchCount, 
-	                                 const double closest) {
+	                                 const double closest, 
+	                                 const bool filterSNR) {
 		int missingPlateCount = missingPlate.size(); 
 		int tooFaintCount     = tooFaint.size();
 		if (missingPlateCount > 0) {
@@ -588,12 +615,20 @@ public:
 		}
 		if (tooFaintCount > 0) {
 			cout << tooFaintCount << (matchCount>0||tooFaintCount>0?" other":"") << " plate" << (tooFaintCount==1?"":"s");
-			cout << " matched, but " << (tooFaintCount==1 ? "is" : "are") << " too faint to be seen on the plate:\n\t";
+			cout << " matched, but " << (tooFaintCount==1 ? "has" : "have") << " a Signal-to-Noise Ratio below 12:\n\t";
 			for (int j = 0; j < tooFaintCount; j++) {
 				printf("%5d ", tooFaint[j]);
 				if ((j+1) % 5 == 0 && (j+1) < tooFaintCount) cout << "\n\t";
 			}
-			cout << endl;
+			if (filterSNR) {
+				cout << "\nAdd a -snr flag to the command to ignore SNR filtering\n";
+			}
+		} 
+		if (!filterSNR) {
+			cout << "SNR filtering has been ignored\n";
+		}
+		if (matchCount == 0) {
+			cout << "Closest angular distance to a plate centre was " << closest << " degrees\n";
 		}
 	}
 
@@ -608,9 +643,77 @@ public:
 		if (matchCount > 0) {
 			cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << s;
 			cout << " between " << firstDate << " and " << lastDate << '\n';
+			cout << "The shown dates/times represent the middle of the exposure, not the start\n";
 		} else {
 			cout << "No matches found for " << s << "!\n";
 		}
+	}
+
+	/*
+		Returns the filter wavelength based on the plate prefix and filter code strings
+		
+		Values taken from:
+		http://www.roe.ac.uk/ifa/wfau/ukstu/pltcat.html#filter
+			and 
+		http://www.roe.ac.uk/ifa/wfau/ukstu/pltcat.html#prefix
+	*/
+	static int findWavelength(const string& prefix, const string& filter) {
+		// special filters
+		if (filter == "AAO372") return 3727;
+		if (filter == "AAO460") return 4600;
+		if (filter == "AAO468") return 4686;
+		if (filter == "AAO486") return 4860;
+		if (filter == "AAO500") return 5007;
+		if (filter == "AAO540") return 5400;
+		if (filter == "AAO562") return 5620;
+		if (filter == "AAO587") return 5870;
+		if (filter == "AAO630") return 6300;
+		if (filter == "AAO643") return 6430;
+		if (filter == "AAO672") return 6725;
+		if (filter == "AAO656") return 6567;
+		if (filter == "MB 675") return 6751;
+		if (filter == "MB 569") return 5696;
+		if (filter == "MB 666") return 6668;
+		if (filter == "MB 657") return 6567;
+		if (filter == "RG630H") return 6567;
+		if (filter == "MB 486") return 4861;
+		if (filter == "HZ 580") return 5800;
+		if (filter == "HZ 600") return 6000;
+		if (filter == "HZ 620") return 6200;
+		if (filter == "HZ 640") return 6400;
+		if (filter == "HZ 660") return 6600;
+
+		// singular prefixes
+		if (prefix[0] == ' ') {
+			switch (prefix[1]) {
+				case 'U' : return 3550;
+				case 'B' : return 3850;
+				case 'J' : return 3950;
+				case 'V' : return 4950;
+				case 'R' : return 6300;
+				case 'I' : return 7150;
+				case 'Z' : return 10000;
+				default  : break;
+			}
+		} 
+		// two letter prefixes
+		else {
+			switch (prefix[0]) {
+				case 'U' : return 3050;
+				case 'B' : return 3850;
+				case 'J' : return 3950;
+				case 'Y' : return 4550;
+				case 'V' : return 4950;
+				case 'O' : return 5900;
+				case 'R' : return 6300;
+				case 'I' : return 7150;
+				case 'W' : return 8300;
+				case 'Z' : return 10000;
+				default  : break;
+			}
+		}
+		// default, assumes visible wavelength
+		return 5300;
 	}
 };
 

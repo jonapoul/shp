@@ -10,7 +10,8 @@ using namespace std;
 int main(int argc, char* argv[]) {	
 	// determining the program parameters from command line arguments
 	string objectName;
-	Ephemeris::determineParameters(argc, argv, objectName);
+	bool filterSNR;
+	Ephemeris::determineParameters(argc, argv, objectName, filterSNR);
 
 	chrono::time_point<chrono::system_clock> start = chrono::system_clock::now();
 
@@ -96,7 +97,7 @@ int main(int argc, char* argv[]) {
 					double counts = Ephemeris::counts(p.exposure(), magnitude);
 					double countLimit = p.countLimit();
 					double SNR = counts / countLimit;
-					if (SNR < 12) {
+					if (filterSNR && SNR < 12) {
 						tooFaint.push_back(p.id());
 						continue;
 					}
@@ -120,7 +121,7 @@ int main(int argc, char* argv[]) {
 	// printing a summary of how many plates matched, and how many were too faint/missing
 	Plate::printMatches(matchPlates, matchCoords, matchCounts, matchMags, matchLimMags, matchStart, matchMid, matchEnd);
 	Plate::printSummary(firstEphDate, lastEphDate, matchCount, objectName);
-	Plate::printMissingAndFaint(missingPlate, tooFaint, matchCount, closest);
+	Plate::printMissingAndFaint(missingPlate, tooFaint, matchCount, closest, filterSNR);
 
 	// printing the total time taken when running the program	
 	chrono::duration<double> elapsed_seconds = chrono::system_clock::now() - start;
@@ -129,14 +130,6 @@ int main(int argc, char* argv[]) {
 
 
 // TO DO
-	// do SNR a different way
-		// using the filter/emulsion/mag/exposure combos in yellow book
-			// calc the number of counts for each combo and compare it to the plate counts (units of C_vega)
-		// section 5.6.3
-		// merge tooFaintCount and lowSNRCount into one
-	
-	// look into possible longitude error? difference in result for .01 degree difference?
-
 	// read filter wavelength into a plate member variable
 		// convert to a suggested colour for comparison images? Maybe just leave as a wavelength
 

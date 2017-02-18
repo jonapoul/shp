@@ -167,12 +167,18 @@ public:
 	*/
 	static void determineParameters(const int argc, 
 	                                char* argv[], 
-	                                string& name) {
+	                                string& name,
+	                                bool& filterSNR) {
 		name = "";
 		if (argc < 2) {
-			name = printFiles();
+			name = printFiles(filterSNR);
 			return;
 		}
+		// picking up whether the user wants to ignore signal-to-noise ratio filtering
+		filterSNR = true;
+		if (string(argv[1]) == "-snr")
+			filterSNR = false;
+
 		string param = string(argv[1]);
 		for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
 			fs::path file = itr.path().string() +  '/' + param + ".txt";
@@ -182,10 +188,10 @@ public:
 			}
 		}
 		// if the argument doesnt exist as a filename, default to Ceres and pass a flag back to the main program
-		name = printFiles();
+		name = printFiles(filterSNR);
 	}
 
-	static string printFiles() {
+	static string printFiles(bool& filterSNR) {
 		vector<string> comets, planets, useless;
 		// picking up all filenames from tboth folders
 		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/comets")) {
@@ -237,21 +243,32 @@ public:
 		}
 
 		// taking input from the user
-		cout << "\nEnter option: ";
-		string output;
-		cin >> output;
+		cout << "\nEnter option (add \"-snr\" to remove SNR filtering): ";
+		string temp, output;
+		getline(cin, temp);
+		size_t space = temp.find(" ");
+		if (space != string::npos) {
+			output = temp.substr(0, space);
+			string flag = temp.substr(space+1);
+			filterSNR = !(flag == "-snr");
+		} else {
+			filterSNR = true;
+			output = temp;
+		}
 		for (auto& c : output) c = tolower(c);
 		bool choiceIsValid = false;
 		while (!choiceIsValid) {
-			for (auto p : planets) if (p == output) choiceIsValid = true;
-			for (auto c : comets)  if (c == output) choiceIsValid = true;
-			for (auto u : useless) if (u == output) choiceIsValid = true;
+			// if the given string matches any filename in the ephemerides folders, return that string
+			for (auto c : comets)  if (c == output) return output;
+			for (auto p : planets) if (p == output) return output;
+			for (auto u : useless) if (u == output) return output;
 			if (!choiceIsValid) {
 				cout << "That file doesn't exist, try again: ";
 				cin >> output;
 				for (auto& c : output) c = tolower(c);
 			}
 		}
+		// just in case it breaks
 		return output;
 	}
 
