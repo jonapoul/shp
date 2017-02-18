@@ -19,9 +19,9 @@ private:
 	Coords m_coords;		// combines RA and DEC to one object
 	string m_gregorian;		// UT gregorian date string, formatted as yymmdd
 	double m_julian;		// julian date in the middle of exposure
-	double m_exp;			// exposure time in days
+	double m_exp;			// exposure time in secs
 	char m_grade;			// graded plate quality, A being best and C being worst
-	double m_magLimit;		// faintest object that can be seen on the plate, decided by the emulsion/filter/etc
+	double m_countLimit;	// lowest number of photon counts on a plate below which an object isn't visible
 
 public:
 	Plate(const int num=0, 
@@ -31,9 +31,9 @@ public:
 	      const double exp=0.0, 
 	      const char grade=' ', 
 	      const double lim=0.0)
-		: m_id(num), m_coords(c), m_gregorian(g), m_julian(j), m_exp(exp), m_grade(grade), m_magLimit(lim) { }
+		: m_id(num), m_coords(c), m_gregorian(g), m_julian(j), m_exp(exp), m_grade(grade), m_countLimit(lim) { }
 	Plate(const Plate& p)
-		: m_id(p.m_id), m_coords(p.m_coords), m_gregorian(p.m_gregorian), m_julian(p.m_julian), m_exp(p.m_exp), m_grade(p.m_grade), m_magLimit(p.m_magLimit) { }
+		: m_id(p.m_id), m_coords(p.m_coords), m_gregorian(p.m_gregorian), m_julian(p.m_julian), m_exp(p.m_exp), m_grade(p.m_grade), m_countLimit(p.m_countLimit) { }
 
 	inline int id() const { return m_id; };
 	inline Coords coords() const { return m_coords; };
@@ -41,14 +41,14 @@ public:
 	inline double julian() const { return m_julian; };
 	inline double exposure() const { return m_exp; }
 	inline char grade() const { return m_grade; };
-	inline double magLimit() const { return m_magLimit; }
+	inline double countLimit() const { return m_countLimit; }
 	inline void setID(const int id) { m_id = id; };
 	inline void setCoords(const Coords& c) { m_coords = c; };
 	inline void setGregorian(const string& g) { m_gregorian = g; }
 	inline void setJulian(const double j) { m_julian = j; };
 	inline void setExposure(const double e) { m_exp = e; }
 	inline void setGrade(const char grade) { m_grade = grade; };
-	inline void setMagLimit(const double lim) { m_magLimit = lim; }
+	inline void setCountLimit(const double lim) { m_countLimit = lim; }
 
 	/*
 		Reads a line from the plate catalog file and fills in the relevant fields of the Plate object
@@ -65,9 +65,11 @@ public:
 		if (buffer.substr(16,4) == "TEST" || buffer.substr(15,4) == "TEST")
 			return false;
 		// plate number, for later reference
-		m_id = stoi(buffer.substr(2, 5));
+		try { m_id = stoi(buffer.substr(2, 5)); }
+		catch (...) { return false; }
 		// reading the RA/DEC coordinates in sexagesimal format
-		m_coords.parseCoordsFromPlate(buffer);
+		try { m_coords.parseCoordsFromPlate(buffer); }
+		catch (...) { return false; }
 		// julian date calculated from gregorian
 		m_gregorian = buffer.substr(30, 6);
 		string lst = buffer.substr(36, 4);
@@ -77,20 +79,22 @@ public:
 		    !isdigit(lst[2]) || 
 		    !isdigit(lst[3]))
 			return false;
-				
+		
 		m_julian = convertDate(m_gregorian, lst);
 
 		// adding half of the exposure time to the julian date
 		// this means that the outputted position is the position of the object halfway through the exposure
 		// the substring is in the format "mmmt" where t = tenth of a minute
-		m_exp = stod(buffer.substr(52,4))/14400.0;
-		m_julian += m_exp/2.0;
+		try { m_exp = stod(buffer.substr(52,4)) * 6.0; }
+		catch (...) { return false; }
+		m_julian += (m_exp / 86400.0) / 2.0;
 
 		// plate quality grade, from A to C
 		m_grade = buffer[56];
 		// calculating the faintest apparent magnitude that would be visible on the plate
-		m_magLimit = limitingMagnitude(buffer);
+		m_countLimit = limitingCounts(buffer);
 
+		// if no problems were found at any point, return true
 		return true;
 	}
 
@@ -112,7 +116,8 @@ public:
 		From "Practical Astronomy with your Calculator or Spreadsheet"
 	*/
 	static double convertDate(const string& gregorianDate, 
-	                          const string& lst) {
+	                          const string& lst,
+	                          bool isDebug = false) {
 		int year = stoi(gregorianDate.substr(0, 2));
 		if (year < 100)
 			year += (year < 17) ? 2000 : 1900;
@@ -126,6 +131,14 @@ public:
 		double ut = GSTtoUT(gst, julian);
 		double frac = (ut) / 24.0;
 		julian += frac;
+
+		if (isDebug) {		// date conversion debugging
+			printf("\nJD   = %.5f\n", julian-frac);
+			printf("GST  = %.3f\n", gst);
+			printf("UT   = %.3f\n", ut);
+			printf("FRAC = %.3f\n", frac);
+			printf("JD   = %.5f\n", julian);
+		}
 		return julian;
 	}
 
@@ -216,6 +229,29 @@ public:
 	}
 
 	/*
+		Extracts the UT time for a given julian date, as a string in the format "hh:mm:ss.s"
+	*/
+	static string julianToUT(const double JD) {
+		double zeroHour = floor(JD - 0.5) + 0.5;
+		double remainder = (JD - zeroHour) * 24;
+
+		int h    = int(remainder);
+		remainder = (remainder - h) * 60.0;
+		int m    = int(remainder);
+		double s = (remainder - m) * 60.0;
+		stringstream ss;
+		if (h < 10) ss << '0';
+		ss << h << ':';
+		if (m < 10) ss << '0';
+		ss << m << ':';
+		if (s < 10) ss << '0';
+		char sec[20];
+		sprintf(sec, "%.1f", s);
+		ss << sec;
+		return ss.str();
+	}
+
+	/*
 		Takes a Plate array reference and a filename
 		Opens the filename and reads all valid plate records into the array
 	*/
@@ -247,11 +283,10 @@ public:
 	                         const vector<Coords>& c, 
 	                         const vector<int>& count, 
 	                         const vector<double>& mag, 
-	                         const vector<double>& magLim, 
+	                         const vector<double>& countLim, 
 	                         const vector<pair<double,double>>& start, 
 	                         const vector<pair<double,double>>& mid, 
-	                         const vector<pair<double,double>>& end, 
-	                         const vector<double> snr) {
+	                         const vector<pair<double,double>>& end) {
 
 		vector<pair<double,double>> middle;
 		for (auto m : mid) {
@@ -260,144 +295,142 @@ public:
 			middle.push_back({x, y});
 		}
 		const int SIZE = 42;	// defines width of each printed data box
+		size_t length;
 
 		for (int i = 0; i < int(p.size()); i += 2) {
-			if (p.size() % 2 == 1 && i == p.size() - 1) {
-				printf("%03d", count[i]);
-				printf("\tplate ID       = %d\n", p[i].id());
-				printf("\tUT date        = %s\n", gregorianToString(p[i].gregorian()).c_str());
-				printf("\tJulian date    = %.3f\n", p[i].julian());
-				printf("\tObject Coords  = (%.3f, %.3f) deg\n", c[i].getDegRA(), c[i].getDegDEC());
-				printf("\tPlate Position = (%.3f, %.3f) mm\n", middle[i].first, middle[i].second);
-				double dx = end[i].first  - start[i].first;
-				double dy = end[i].second - start[i].second;
-				printf("\tDrift length   = %.2f mm\n", sqrt(dx*dx + dy*dy));
-				printf("\tDrift vector   = (%.2f, %.2f)\n", dx, dy);
-				printf("\tMagnitude      = %.2f (%.2f)\n", mag[i], magLim[i]);
-				printf("\tPlate Grade    = %c\n", p[i].grade());
-				printf("\tExposure       = %.1f mins\n", p[i].exposure()*1440);
-				printf("\tSignalToNoise  = %.2f\n", snr[i]);
-				printf("%s\n", string(SIZE*1.2, '-').c_str());
-			} else {
-				stringstream ss;
-				char buffer0[50], buffer01[50], buffer1[50], buffer2[50];
-				sprintf(buffer0, "%03d", count[i]);
-				sprintf(buffer01, "%03d", count[i+1]);
-				sprintf(buffer1, "\tplate ID       = %d", p[i].id());
-				sprintf(buffer2, "\tplate ID       = %d", p[i+1].id());
-				ss << buffer0 << buffer1;
-				size_t length = SIZE-ss.str().length();
+			bool canPrint = (i != p.size() - 1) && (p.size() % 2 != 1);
+			stringstream ss;
+
+			// Match number and Plate ID
+			char buffer1[50], buffer2[50], buffer3[50], buffer4[50];
+			sprintf(buffer1, "%03d", count[i]);
+			sprintf(buffer2, "\tplate ID       = %d", p[i].id());
+			ss << buffer1 << buffer2;
+			if (canPrint) {
+				length = SIZE-ss.str().length();
 				ss << string(length+3, ' ');
-				ss << "| " << buffer01 << buffer2 << '\n';
-				cout << ss.str();
-				ss.str("");
+				sprintf(buffer3, "%03d", count[i+1]);
+				sprintf(buffer4, "\tplate ID       = %d", p[i+1].id());
+				ss << "| " << buffer3 << buffer4;
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
 
-				ss << "\tUT date        = " << gregorianToString(p[i].gregorian());
+			// UT Date
+			ss << "\tUT date        = " << gregorianToString(p[i].gregorian());
+			if (canPrint) {
 				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
-				ss << "| " << "\tUT date        = " << gregorianToString(p[i+1].gregorian()) << '\n';
-				cout << ss.str();
-				ss.str("");
+				ss << "| " << "\tUT date        = " << gregorianToString(p[i+1].gregorian());
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
 
-				char buffer3[50], buffer4[50];
-				sprintf(buffer3, "\tJulian date    = %.3f", p[i].julian());
-				sprintf(buffer4, "\tJulian date    = %.3f", p[i+1].julian());
-				ss << buffer3;
+			// Julian Date
+			char buffer5[50], buffer6[50];
+			sprintf(buffer5, "\tJulian date    = %.3f", p[i].julian());
+			ss << buffer5;
+			if (canPrint) {
 				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
-				ss << "| " << buffer4 << '\n';
-				cout << ss.str();
-				ss.str("");
+				sprintf(buffer6, "\tJulian date    = %.3f", p[i+1].julian());
+				ss << "| " << buffer6;
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
 
-				char buffer7[50], buffer8[50];
-				sprintf(buffer7, "\tObject Coords  = (%.3f, %.3f) deg", c[i].getDegRA(), c[i].getDegDEC());
+			// Object's RA/DEC coordinates in degrees
+			char buffer7[50], buffer8[50];
+			sprintf(buffer7, "\tObject Coords  = (%.3f, %.3f) deg", c[i].getDegRA(), c[i].getDegDEC());
+			ss << buffer7;
+			if (canPrint) {
+				length = SIZE-ss.str().length();
+				ss << string(length, ' ');
 				sprintf(buffer8, "\tObject Coords  = (%.3f, %.3f) deg", c[i+1].getDegRA(), c[i+1].getDegDEC());
-				ss << buffer7;
+				ss << "| " << buffer8;
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
+
+			// Object's positional coordinates on the plate, in millimetres from the bottom left corner
+			char buffer9[50], buffer10[50];
+			sprintf(buffer9, "\tPlate Position = (%.3f, %.3f) mm", middle[i].first, middle[i].second);
+			ss << buffer9;
+			if (canPrint) {
 				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
-				ss << "| " << buffer8 << '\n';
-				cout << ss.str();
-				ss.str("");
+				sprintf(buffer10, "\tPlate Position = (%.3f, %.3f) mm", middle[i+1].first, middle[i+1].second);
+				ss << "| " << buffer10;
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
 
-				char buffer11[50], buffer12[50];
-				sprintf(buffer11, "\tPlate Position = (%.3f, %.3f) mm", middle[i].first, middle[i].second);
-				sprintf(buffer12, "\tPlate Position = (%.3f, %.3f) mm", middle[i+1].first, middle[i+1].second);
-				ss << buffer11;
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << buffer12 << '\n';
-				cout << ss.str();
-				ss.str("");
-
-				char buffer15[50], buffer16[50];
-				double dx = end[i].first  - start[i].first;
-				double dy = end[i].second - start[i].second;
-				double drift = sqrt(dx*dx + dy*dy);
-				sprintf(buffer15, "\tDrift length   = %.2f mm", drift);
+			// Length of the object's exposure trail on the plate in millimetres, plus the directional vector
+			char buffer11[50], buffer12[50], buffer13[50], buffer14[50];
+			double dx = end[i].first  - start[i].first;
+			double dy = end[i].second - start[i].second;
+			double drift = sqrt(dx*dx + dy*dy);
+			sprintf(buffer11, "\tDrift length   = %.2f mm", drift);
+			sprintf(buffer13, "\tDrift vector   = (%.2f, %.2f)", dx, dy);
+			ss << buffer11;
+			if (canPrint) {
 				dx = end[i+1].first  - start[i+1].first;
 				dy = end[i+1].second - start[i+1].second;
 				drift = sqrt(dx*dx + dy*dy);
-				sprintf(buffer16, "\tDrift length   = %.2f mm", drift);
-				ss << buffer15;
+				sprintf(buffer12, "\tDrift length   = %.2f mm", drift);
+				sprintf(buffer14, "\tDrift vector   = (%.2f, %.2f)", dx, dy);
 				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
-				ss << "| " << buffer16 << '\n';
-				cout << ss.str();
-				ss.str("");
-
-				char buffer5[50], buffer6[50];
-				dx = end[i].first  - start[i].first;
-				dy = end[i].second - start[i].second;
-				sprintf(buffer5, "\tDrift vector   = (%.2f, %.2f)", dx, dy);
-				dx = end[i+1].first  - start[i+1].first;
-				dy = end[i+1].second - start[i+1].second;
-				sprintf(buffer6, "\tDrift vector   = (%.2f, %.2f)", dx, dy);
-				ss << buffer5;
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "|" << buffer6 << '\n';
-				cout << ss.str();
-				ss.str("");
-
-				char buffer17[50], buffer18[50];
-				sprintf(buffer17, "\tMagnitude      = %.2f (%.2f)", mag[i], magLim[i]);
-				sprintf(buffer18, "\tMagnitude      = %.2f (%.2f)", mag[i+1], magLim[i+1]);
-				ss << buffer17;
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << buffer18 << '\n';
-				cout << ss.str();
-				ss.str("");
-
-				ss << "\tPlate Grade    = " << p[i].grade();
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| \tPlate Grade    = " << p[i+1].grade() << '\n';
-				cout << ss.str();
-				ss.str("");
-
-				char buffer19[50], buffer20[50];
-				sprintf(buffer19, "\tExposure       = %.1f mins", p[i].exposure()*1440);
-				sprintf(buffer20, "\tExposure       = %.1f mins", p[i+1].exposure()*1440);
-				ss << buffer19;
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << buffer20 << '\n';
-				cout << ss.str();
-				ss.str("");
-
-				char buffer21[50], buffer22[50];
-				sprintf(buffer21, "\tSignalToNoise  = %.2f", snr[i]);
-				sprintf(buffer22, "\tSignalToNoise  = %.2f", snr[i+1]);
-				ss << buffer21;
-				length = SIZE-ss.str().length();
-				ss << string(length, ' ');
-				ss << "| " << buffer22 << '\n';
-				cout << ss.str();
-				ss.str("");
-
-				cout << string(SIZE*2.4, '-') << '\n';
+				ss << "| " << buffer12;
 			}
+			cout << ss.str() << '\n';
+			ss.str("");
+			ss << buffer13;
+			if (canPrint) {
+				length = SIZE-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer14;
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
+
+			// Object's apparent magnitude on the plate
+			char buffer15[50], buffer16[50];
+			sprintf(buffer15, "\tMagnitude      = %.2f", mag[i]);
+			ss << buffer15;
+			if (canPrint) {
+				length = SIZE-ss.str().length();
+				ss << string(length, ' ');
+				sprintf(buffer16, "\tMagnitude      = %.2f", mag[i+1]);
+				ss << "| " << buffer16;
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
+
+			// Plate quality grade
+			ss << "\tPlate Grade    = " << p[i].grade();
+			if (canPrint) {
+				length = SIZE-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| \tPlate Grade    = " << p[i+1].grade();
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
+
+			// Plate exposure time in minutes
+			char buffer17[50], buffer18[50];
+			sprintf(buffer17, "\tExposure       = %.1f mins", p[i].exposure() / 60.0);
+			ss << buffer17;
+			if (canPrint) {
+				sprintf(buffer18, "\tExposure       = %.1f mins", p[i+1].exposure() / 60.0);
+				length = SIZE-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer18;
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
+
+			cout << string(SIZE*2.4, '-') << '\n';
 		}
 		/*for (int i = 0; i < middle.size(); i++) {
 			printf("%d %.3f (%.3f %.3f) (%.3f %.3f) (%.3f %.3f)\n", p[i].id(), p[i].julian(), start[i].first, start[i].second, middle[i].first, middle[i].second, end[i].first, end[i].second);
@@ -406,30 +439,49 @@ public:
 	
 	/*
 		Takes the plate prefix/emulsions/filters from the plate record and calculates the 
-		magnitude of the faintest possible object on that plate.
+		number of photon counts of the faintest possible object on that plate.
 
 		Return values pulled from http://www.roe.ac.uk/ifa/wfau/ukstu/telescope.html#fe
 	*/
-	static double limitingMagnitude(const string& buffer) {
+	static double limitingCounts(const string& buffer) {
 		string prefix = buffer.substr(0, 2);
+		string emulsion = buffer.substr(40, 6);
 		boost::algorithm::trim(prefix);
-		if (prefix == "U" || prefix == "B" || prefix == "V") 
-			return 21.0;
-		else if (prefix == "J" || prefix == "BJ" || prefix == "OR")
-			return 22.5;
-		else if (prefix == "R" || prefix == "HA")
-			return 21.5;
-		else if (prefix == "I")
-			return 19.0;
-		else if (prefix == "OR") {
-			string emulsion = buffer.substr(40, 6);
-			boost::algorithm::trim(emulsion);
+		boost::algorithm::trim(emulsion);
+		double magLim, expLim;
+		if (prefix == "U") {
+			expLim = 180;
+			magLim = 21;
+		} else if (prefix == "B") {
+			expLim = 60;
+			magLim = 21;
+		} else if (prefix == "BJ" || prefix == "J") {
+			expLim = 60;
+			magLim = 22.5;
+		} else if (prefix == "V") {
+			expLim = 60;
+			magLim = 21;
+		} else if (prefix == "OR") {
+			expLim = 60;
 			if (emulsion == "IIIa-F")
-				return 21.5;
+				magLim = 21.5;
 			else
-				return 22.5;
+				magLim = 22.5;
+		} else if (prefix == "R") {
+			expLim = 90;
+			magLim = 21.5;
+		} else if (prefix == "HA") {
+			expLim = 180;
+			magLim = 21.5;
+		} else if (prefix == "I") {
+			expLim = 90;
+			magLim = 19.5;
+		} else {
+			expLim = 100;		// these default values were pulled out of the ether
+			magLim = 22;
 		}
-		return 23.0;	// default value
+		expLim *= 60;	// convert minutes to seconds
+		return expLim * pow(10.0, -magLim / 2.5);
 	}
 
 	/*
@@ -455,15 +507,15 @@ public:
 		Returns the values as an std::pair<double> object, with xi as first and eta in second
 	*/
 	static void exposureBoundaries(const Plate& p, 
-	                               const vector<Coords>& coords, 
-	                               const vector<double>& times, 
+	                               const pair<Coords,Coords>& coords, 
+	                               const pair<double,double>& times, 
 	                               pair<double, double>& start, 
 	                               pair<double, double>& end) {
-		double expTime   = p.exposure();
+		double expTime   = p.exposure() / 86400.0;	// in days
 		double startTime = p.julian() - (expTime/2.0);
 		double endTime   = p.julian() + (expTime/2.0);
-		Coords startCoords = Coords::linInterp(coords[0], times[0], coords[1], times[1], startTime);
-		Coords endCoords   = Coords::linInterp(coords[0], times[0], coords[1], times[1], endTime);
+		Coords startCoords = Coords::linInterp(coords.first, times.first, coords.second, times.second, startTime);
+		Coords endCoords   = Coords::linInterp(coords.first, times.first, coords.second, times.second, endTime);
 
 		double xiStart, xiEnd, etaStart, etaEnd;
 		int status1, status2;
@@ -481,23 +533,31 @@ public:
 
 	/*
 		Converts the output of a gnomonic transformation to mm
+			1) convert radians to arcseconds
+			2) convert arcsecs to millimetres, using the given rate of 67.12"/mm
+			3) add a shift of half the plate size
+		This gives the output as relative to the bottom left corner of the plate
 	*/
 	static double radsToMM(const double rads) {
 		return (rads * 3600.0 * 180.0) / (67.12 * M_PI) + (PLATE_SIZE / 2.0);
 	}
 
+	/*
+		Inverse of the above
+	*/
 	static double mmToRads(const double mm) {
 		return (mm - (PLATE_SIZE / 2.0)) * (67.12 * M_PI) / (3600.0 * 180.0);
 	}
 
+	/*
+		Prints a summary of which plates were matched, but are known to be unviewable
+		This is either due to the plate being known as broken/missing, or the signal-to-noise
+		ratio of the plate is too low to spot the asteroid
+	*/
 	static void printMissingAndFaint(const vector<unsigned>& missingPlate, 
-	                                 const vector<unsigned>& tooFaint, 
-	                                 const vector<unsigned>& tooLowSNR,
 	                                 const int matchCount, 
 	                                 const double closest) {
 		int missingPlateCount = missingPlate.size(); 
-		int tooFaintCount     = tooFaint.size();
-		int tooLowSNRCount    = tooLowSNR.size();
 		if (missingPlateCount > 0) {
 			cout << missingPlateCount << (matchCount>0?" other":"") << " plate" << (missingPlateCount==1?"":"s");
 			cout << " matched, but " << (missingPlateCount==1 ? "isn't" : "aren't") << " in the plate room:\n\t";
@@ -506,23 +566,6 @@ public:
 				if ((j+1) % 5 == 0 && (j+1) < missingPlateCount) cout << "\n\t";
 			}
 			cout << endl;
-		} if (tooFaintCount > 0) {
-			cout << tooFaintCount << (missingPlateCount>0||matchCount>0 ? " other" : "") << " plate" << (tooFaintCount==1 ? "" : "s");
-			cout << " matched, but " << (tooFaintCount==1 ? "was" : "were") << " too faint to show up on the plate:\n\t";
-			for (int j = 0; j < tooFaintCount; j++) {
-				printf("%5d ", tooFaint[j]);
-				if ((j+1) % 5 == 0 && (j+1) < tooFaintCount) cout << "\n\t";
-			}
-			cout << endl;
-		} if (tooLowSNRCount > 0) {
-			cout << tooLowSNRCount << (missingPlateCount>0||matchCount>0||matchCount>0||tooFaintCount>0 ? " other" : "") << " plate" << (tooLowSNRCount==1 ? "" : "s");
-			cout << " matched, but ha" << (tooLowSNRCount > 1 ? "ve" : "s") << " a low Signal-To-Noise ratio:\n\t";
-			for (int j = 0; j < tooLowSNRCount; j++) {
-				printf("%5d ", tooLowSNR[j]);
-				if ((j+1) % 5 == 0 && (j+1) < tooLowSNRCount) cout << "\n\t";
-			}
-			cout << endl;		} if (tooFaintCount == 0 && matchCount == 0 && missingPlateCount == 0) {
-			printf("Closest approach was %.3f degrees from plate centre\n", closest);
 		}
 	}
 
@@ -540,19 +583,6 @@ public:
 		} else {
 			cout << "No matches found for " << s << "!\n";
 		}
-	}
-
-	/*
-		Calculates an arbitrary signal-to-noise ratio, relative to a base magnitude and base count rate
-	*/
-	static double signalToNoiseRatio(const double magnitude, 
-	                                 const double exposure, 
-	                                 const double baseMagnitude = 20.0, 
-	                                 const double baseCountRate = 1.0) {
-		double countRate = baseCountRate * pow(10.0, (baseMagnitude-magnitude)/2.5);
-
-		// multiplied by 86400 to convert exposure from days to seconds
-		return sqrt(countRate * exposure * 86400);
 	}
 };
 

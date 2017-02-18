@@ -74,6 +74,13 @@ public:
 	}
 
 	/*
+		Calculates how many photon counts would be recieved for a given exposure time (in seconds)
+	*/
+	double counts(const double exp) {
+		return 0.0;
+	}
+
+	/*
 		Goes through the ephemeris file to pick out all relevant data, then stores them all in 
 		a vector of Ephemeris objects. The $$SOE and $$EOE tags signify the start and end of the 
 		data lines.
@@ -254,7 +261,6 @@ public:
 		}
 		return output;
 	}
-
 };
 
 #endif

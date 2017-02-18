@@ -34,11 +34,11 @@ int main(int argc, char* argv[]) {
 	int matchCount = 0;
 
 	// arrays for holding data to be printed at the end
-	vector<unsigned> tooFaint, missingPlate, tooLowSNR;
+	vector<unsigned> tooFaint, missingPlate;
 	vector<Plate> matchPlates;
 	vector<Coords> matchCoords;
 	vector<int> matchCounts;
-	vector<double> matchMags, matchLimMags, matchSNR;
+	vector<double> matchMags, matchLimMags;
 	vector<pair<double,double>> matchStart, matchMid, matchEnd;
 
 	// used to determine the closest angular distance between plate centre and object coordinates
@@ -93,18 +93,7 @@ int main(int argc, char* argv[]) {
 					}
 					// checks whether the plate's magnitude limit is sufficient to spot the object
 					double magnitude = Ephemeris::linInterp(eph[i].mag(), beforeDate, eph[i+1].mag(), afterDate, plateDate);
-					if (magnitude > p.magLimit()) {
-						tooFaint.push_back(p.id());
-						continue;
-					}
-					// calculating the relative signal-to-noise ratio of the plate
-					// uses a baseline photon countrate 'n0' and calculates a relative countrate 'n' for this magnitude
-					// then S/N = sqrt(n*t)
-					double snr = Plate::signalToNoiseRatio(magnitude, p.exposure());
-					if (snr < 100) {
-						tooLowSNR.push_back(p.id());
-						continue;
-					}
+					
 					// xi/eta coords of the points at the start, middle and end of the exposure
 					pair<double,double> start, mid(xi, eta), end;
 					Plate::exposureBoundaries(p, {before,after}, {beforeDate,afterDate}, start, end);
@@ -113,20 +102,18 @@ int main(int argc, char* argv[]) {
 					matchPlates.push_back(p);
 					matchCoords.push_back(interpedCoords);
 					matchMags.push_back(magnitude);
-					matchLimMags.push_back(p.magLimit());
 					matchStart.push_back(start);
 					matchMid.push_back(mid);
 					matchEnd.push_back(end);
-					matchSNR.push_back(snr);
 				}
 			}
 		}
 	}
 
 	// printing a summary of how many plates matched, and how many were too faint/missing
-	Plate::printMatches(matchPlates, matchCoords, matchCounts, matchMags, matchLimMags, matchStart, matchMid, matchEnd, matchSNR);
+	Plate::printMatches(matchPlates, matchCoords, matchCounts, matchMags, matchLimMags, matchStart, matchMid, matchEnd);
 	Plate::printSummary(firstEphDate, lastEphDate, matchCount, objectName);
-	Plate::printMissingAndFaint(missingPlate, tooFaint, tooLowSNR, matchCount, closest);
+	Plate::printMissingAndFaint(missingPlate, matchCount, closest);
 
 	// printing the total time taken when running the program	
 	chrono::duration<double> elapsed_seconds = chrono::system_clock::now() - start;
@@ -135,16 +122,21 @@ int main(int argc, char* argv[]) {
 
 
 // TO DO
+	// do SNR a different way
+		// using the filter/emulsion/mag/exposure combos in yellow book
+			// calc the number of counts for each combo and compare it to the plate counts (units of C_vega)
+		// section 5.6.3
+		// merge tooFaintCount and lowSNRCount into one
+
+	// read filter wavelength into a plate member variable
+		// convert to a suggested colour for comparison images? Maybe just leave as a wavelength
+
 	// look at data reduction manual for what i'll be doing after
 		// precision?
 
-	// option to print out all known matches of comets
-		// print a short summary of each file
-		// number total matches, number legit, number too faint, number low SNR
-
 	// supercosmos catalogue download for images
 		// downloaded a fits file of plate 7233, it's backwards in the x direction but otherwise ok
-		// need to load it into gaia to check ra/dec accuracy
+		// need to load it into gaia to check ra/dec accuracy via PHOTOMETRY
 
 	// try to incorporate the errors in RA/DEC from the ephemeris somewhere
 		// rough estimate for error region on the plate
