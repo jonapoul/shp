@@ -74,13 +74,6 @@ public:
 	}
 
 	/*
-		Calculates how many photon counts would be recieved for a given exposure time (in seconds)
-	*/
-	double counts(const double exp) {
-		return 0.0;
-	}
-
-	/*
 		Goes through the ephemeris file to pick out all relevant data, then stores them all in 
 		a vector of Ephemeris objects. The $$SOE and $$EOE tags signify the start and end of the 
 		data lines.
@@ -99,7 +92,7 @@ public:
 			}
 		}
 		if (fileDoesntExist) {
-			cout << filename << ".txt couldn't be found anywhere in /ephemeris/, exiting...\n";
+			cout << filename << ".txt couldn't be found in /ephemeris/, exiting...\n";
 			exit(1);
 		}
 		ifstream ephemerisFile(path);
@@ -260,6 +253,14 @@ public:
 			}
 		}
 		return output;
+	}
+
+	/*
+		Calculates how many photon counts would be recieved for a given exposure time (in seconds)
+	*/
+	static double counts(const double exposure,
+	                     const double magnitude) {
+		return exposure * pow(10.0, -magnitude / 2.5);
 	}
 };
 

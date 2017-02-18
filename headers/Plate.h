@@ -246,7 +246,7 @@ public:
 		ss << m << ':';
 		if (s < 10) ss << '0';
 		char sec[20];
-		sprintf(sec, "%.1f", s);
+		sprintf(sec, "%.0f", s);
 		ss << sec;
 		return ss.str();
 	}
@@ -298,7 +298,7 @@ public:
 		size_t length;
 
 		for (int i = 0; i < int(p.size()); i += 2) {
-			bool canPrint = (i != p.size() - 1) && (p.size() % 2 != 1);
+			bool canPrint = !(i == p.size() - 1 && p.size() % 2 == 1);
 			stringstream ss;
 
 			// Match number and Plate ID
@@ -317,11 +317,13 @@ public:
 			ss.str("");
 
 			// UT Date
-			ss << "\tUT date        = " << gregorianToString(p[i].gregorian());
+			ss << "\tUT date/time   = " << gregorianToString(p[i].gregorian());
+			ss << ", " << julianToUT(p[i].julian());
 			if (canPrint) {
 				length = SIZE-ss.str().length();
 				ss << string(length, ' ');
 				ss << "| " << "\tUT date        = " << gregorianToString(p[i+1].gregorian());
+				ss << ", " << julianToUT(p[i+1].julian());
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -430,6 +432,21 @@ public:
 			cout << ss.str() << '\n';
 			ss.str("");
 
+			// Sort-of signal to noise ratio
+			char buffer19[50], buffer20[50];
+			double snr1 = Ephemeris::counts(p[i].exposure(), mag[i]) / p[i].countLimit();
+			double snr2 = Ephemeris::counts(p[i+1].exposure(), mag[i+1]) / p[i+1].countLimit();
+			sprintf(buffer19, "\tSNR            = %.2f", snr1);
+			ss << buffer19;
+			if (canPrint) {
+				sprintf(buffer20, "\tSNR            = %.2f", snr2);
+				length = SIZE-ss.str().length();
+				ss << string(length, ' ');
+				ss << "| " << buffer20;
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
+
 			cout << string(SIZE*2.4, '-') << '\n';
 		}
 		/*for (int i = 0; i < middle.size(); i++) {
@@ -463,7 +480,7 @@ public:
 			magLim = 21;
 		} else if (prefix == "OR") {
 			expLim = 60;
-			if (emulsion == "IIIa-F")
+			if (emulsion == "IIIaF")
 				magLim = 21.5;
 			else
 				magLim = 22.5;
@@ -555,15 +572,26 @@ public:
 		ratio of the plate is too low to spot the asteroid
 	*/
 	static void printMissingAndFaint(const vector<unsigned>& missingPlate, 
+	                                 const vector<unsigned>& tooFaint, 
 	                                 const int matchCount, 
 	                                 const double closest) {
 		int missingPlateCount = missingPlate.size(); 
+		int tooFaintCount     = tooFaint.size();
 		if (missingPlateCount > 0) {
 			cout << missingPlateCount << (matchCount>0?" other":"") << " plate" << (missingPlateCount==1?"":"s");
 			cout << " matched, but " << (missingPlateCount==1 ? "isn't" : "aren't") << " in the plate room:\n\t";
 			for (int j = 0; j < missingPlateCount; j++) {
 				printf("%5d ", missingPlate[j]);
 				if ((j+1) % 5 == 0 && (j+1) < missingPlateCount) cout << "\n\t";
+			}
+			cout << endl;
+		}
+		if (tooFaintCount > 0) {
+			cout << tooFaintCount << (matchCount>0||tooFaintCount>0?" other":"") << " plate" << (tooFaintCount==1?"":"s");
+			cout << " matched, but " << (tooFaintCount==1 ? "is" : "are") << " too faint to be seen on the plate:\n\t";
+			for (int j = 0; j < tooFaintCount; j++) {
+				printf("%5d ", tooFaint[j]);
+				if ((j+1) % 5 == 0 && (j+1) < tooFaintCount) cout << "\n\t";
 			}
 			cout << endl;
 		}
