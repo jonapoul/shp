@@ -16,7 +16,7 @@ int main(int argc, char* argv[]) {
 	chrono::time_point<chrono::system_clock> start = chrono::system_clock::now();
 
 	// an array of plate IDs that I couldn't find in the archive room, just so i can disregard any matches with these
-	vector<int> blacklist = {4910, 14587, 15320, 17266};
+	vector<int> missingList = {4910, 14587, 15320, 17266};
 	// reading all valid plate records
 	vector<Plate> plates;
 	Plate::readPlateCatalog(plates, "catalog.txt");
@@ -41,6 +41,7 @@ int main(int argc, char* argv[]) {
 	vector<int> matchCounts;
 	vector<double> matchMags, matchLimMags;
 	vector<pair<double,double>> matchStart, matchMid, matchEnd;
+	vector<string> matchUncertainies;
 
 	// used to determine the closest angular distance between plate centre and object coordinates
 	// only used in case there are no matches, eg mercury/venus/makemake
@@ -60,6 +61,8 @@ int main(int argc, char* argv[]) {
 		double beforeDate = eph[i].julian();
 		Coords after 	  = eph[i+1].coords();
 		double afterDate  = eph[i+1].julian();
+
+		string strng = Ephemeris::uncertainties(eph[i], eph[i+1], plateDate);
 
 		// approximate linear interpolation
 		Coords interpedCoords  = Coords::linInterp(before, beforeDate, after, afterDate, plateDate);
@@ -88,20 +91,20 @@ int main(int argc, char* argv[]) {
 				// if the distances are both less than 3.2 degrees, the point will be on the plate
 				if (toXAxis < 3.2 && toYAxis < 3.2) {
 					// checks whether the matched plate is known to be missing
-					if ( p.isMissing(blacklist) ) {
+					if ( p.isMissing(missingList) ) {
 						missingPlate.push_back(p.id());;
 						continue;
 					}
-					// checks whether the plate's count limit is sufficient to spot the object
+					// checks whether the plate's signal to noise ratio is sufficient to spot the object
 					double magnitude = Ephemeris::linInterp(eph[i].mag(), beforeDate, eph[i+1].mag(), afterDate, plateDate);
 					double counts = Ephemeris::counts(p.exposure(), magnitude);
 					double countLimit = p.countLimit();
 					double SNR = counts / countLimit;
+					// 12 is a totally empirical limit, can be changed if necessary
 					if (filterSNR && SNR < 12) {
 						tooFaint.push_back(p.id());
 						continue;
 					}
-					
 					// xi/eta coords of the points at the start, middle and end of the exposure
 					pair<double,double> start, mid(xi, eta), end;
 					Plate::exposureBoundaries(p, {before,after}, {beforeDate,afterDate}, start, end);
@@ -113,13 +116,16 @@ int main(int argc, char* argv[]) {
 					matchStart.push_back(start);
 					matchMid.push_back(mid);
 					matchEnd.push_back(end);
+					matchUncertainies.push_back(Ephemeris::uncertainties(eph[i], eph[i+1], plateDate));
 				}
 			}
 		}
 	}
 
 	// printing a summary of how many plates matched, and how many were too faint/missing
-	Plate::printMatches(matchPlates, matchCoords, matchCounts, matchMags, matchLimMags, matchStart, matchMid, matchEnd);
+	Plate::printMatches(matchPlates, matchCoords, matchCounts, 
+	                    matchMags, matchLimMags, matchStart, 
+	                    matchMid, matchEnd, matchUncertainies);
 	Plate::printSummary(firstEphDate, lastEphDate, matchCount, objectName);
 	Plate::printMissingAndFaint(missingPlate, tooFaint, matchCount, closest, filterSNR);
 
@@ -138,6 +144,11 @@ int main(int argc, char* argv[]) {
 		// need to load it into gaia to check ra/dec accuracy via PHOTOMETRY
 
 	// try to incorporate the errors in RA/DEC from the ephemeris somewhere
+		// print 1sig or 3sig? ASK NIGEL
+		// Add another line underneath object position:
+			// Errors     = x(+a -b) y(+c -d) mm
+			// or just squish it down to x(+-a) y(+-b) if they both round to the same
+		// make a function that outputs a string for a given pair of ephs (before and after)
 		// rough estimate for error region on the plate
 		// use this to pipe back more accurate measurements to minor planet centre maybe?
 		// error comes from extrapolating object paths backwards if they were recently discovered, eg Eris/Makemake

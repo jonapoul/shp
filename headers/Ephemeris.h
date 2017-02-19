@@ -5,6 +5,8 @@
 #include <vector>
 #include <sstream>
 #include <fstream>
+#include <iterator>
+#include <algorithm>
 #include <experimental/filesystem>
 #include <boost/algorithm/string.hpp>
 #include "Coords.h"
@@ -193,68 +195,46 @@ public:
 	}
 
 	static string printFiles(bool& filterSNR) {
-		vector<string> comets, planets, useless;
-		// picking up all filenames from tboth folders
-		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/comets")) {
-			if (is_regular_file(itr.path())) 
-				comets.push_back(itr.path().stem().string());
-		}
-		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/planets")) {
-			if (is_regular_file(itr.path())) 
-				planets.push_back(itr.path().stem().string());
-		}
-		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/useless")) {
-			if (is_regular_file(itr.path())) 
-				useless.push_back(itr.path().stem().string());
-		}
-		sort(planets.begin(), planets.end(), less<string>());
-		sort(comets.begin(),  comets.end(),  less<string>());
-		sort(useless.begin(), useless.end(), less<string>());
-		
-		// finding the length of the longest filename, to help with output formatting
+		vector< vector<string> > folders;
+		vector<string> folderNames;
 		size_t maxLength = 0;
-		for (auto p : planets) maxLength = (p.length() > maxLength) ? p.length() : maxLength;
-		for (auto c : comets)  maxLength = (c.length() > maxLength) ? c.length() : maxLength;
-		for (auto u : useless) maxLength = (u.length() > maxLength) ? u.length() : maxLength;
 
-		// printing all the file options
-		cout << "   Planets:\n";
-		for (size_t j = 0; j < planets.size(); j += 5) {
-			cout << '\t' << planets[j] << string(maxLength+2-planets[j].length(), ' ');
-			if (j+1 < planets.size()) 
-				cout << '\t' << planets[j+1] << string(maxLength+2-planets[j+1].length(), ' ');
-			if (j+2 < planets.size())
-				cout << '\t' << planets[j+2] << string(maxLength+2-planets[j+2].length(), ' ');
-			if (j+3 < planets.size())
-				cout << '\t' << planets[j+3] << string(maxLength+2-planets[j+3].length(), ' ');
-			if (j+4 < planets.size())
-				cout << '\t' << planets[j+4] << string(maxLength+2-planets[j+4].length(), ' ');
-			cout << '\n';
+		for (auto& itr : fs::directory_iterator("./ephemeris")) {
+			if (is_directory(itr.path())) {
+				string name = itr.path().stem().string();
+				
+				// go through the recently-found folder and add all filename to an array
+				fs::path path = itr.path();				
+				vector<string> files;
+				for (auto& itr : fs::recursive_directory_iterator(path)) {
+					if (is_regular_file(itr.path())) 
+						files.push_back(itr.path().stem().string());
+				}
+				// sorting the files in alphabetical order
+				sort(files.begin(), files.end(), less<string>());
+
+				// finding the longest filename length
+				for (auto f : files) maxLength = (f.length() > maxLength) ? f.length() : maxLength;
+
+				// Switch the first letter to a capital to it reads a bit better
+				name[0] = toupper(name[0]);
+				folderNames.push_back(name);
+				folders.push_back(files);
+			}
 		}
-		cout << "\n   Comets:\n";
-		for (size_t j = 0; j < comets.size(); j += 5) {
-			cout << '\t' << comets[j] << string(maxLength+2-comets[j].length(), ' ');
-			if (j+1 < comets.size()) 
-				cout << '\t' << comets[j+1] << string(maxLength+2-comets[j+1].length(), ' ');
-			if (j+2 < comets.size())
-				cout << '\t' << comets[j+2] << string(maxLength+2-comets[j+2].length(), ' ');
-			if (j+3 < comets.size())
-				cout << '\t' << comets[j+3] << string(maxLength+2-comets[j+3].length(), ' ');
-			if (j+4 < comets.size())
-				cout << '\t' << comets[j+4] << string(maxLength+2-comets[j+4].length(), ' ');
-			cout << '\n';
-		}
-		cout << "\n   Useless:\n";
-		for (size_t j = 0; j < useless.size(); j += 3) {
-			cout << '\t' << useless[j] << string(maxLength+2-useless[j].length(), ' ');
-			if (j+1 < useless.size()) 
-				cout << '\t' << useless[j+1] << string(maxLength+2-useless[j+1].length(), ' ');
-			if (j+2 < useless.size())
-				cout << '\t' << useless[j+2] << string(maxLength+2-useless[j+2].length(), ' ');
-			if (j+3 < useless.size())
-				cout << '\t' << useless[j+3] << string(maxLength+2-useless[j+3].length(), ' ');
-			if (j+4 < useless.size())
-				cout << '\t' << useless[j+4] << string(maxLength+2-useless[j+4].length(), ' ');
+
+		// printing out an ordered list of all files in each folder under ./ephemeris/
+		// yes I know it's messy and a bit ad-hoc but it looks nice
+		for (size_t i = 0; i < folders.size(); i++) {
+			cout << "   " << folderNames[i] << ":\n";
+			const int FILES_PER_LINE = 6;
+			for (size_t j = 0; j < folders[i].size(); j += FILES_PER_LINE) {
+				cout << '\t';
+				for (int k = 0; j+k < folders[i].size() && k < FILES_PER_LINE; k++) {
+					cout << folders[i][j+k] << string(maxLength+5-folders[i][j+k].length(), ' ');
+				}
+				cout << '\n';
+			}
 			cout << '\n';
 		}
 
@@ -275,9 +255,11 @@ public:
 		bool choiceIsValid = false;
 		while (!choiceIsValid) {
 			// if the given string matches any filename in the ephemerides folders, return that string
-			for (auto c : comets)  if (c == output) return output;
-			for (auto p : planets) if (p == output) return output;
-			for (auto u : useless) if (u == output) return output;
+			for (auto& folder : folders) {
+				for (auto& file : folder) {
+					if (file == output) return output;
+				}
+			}
 			if (!choiceIsValid) {
 				cout << "That file doesn't exist, try again: ";
 				cin >> output;
@@ -294,6 +276,26 @@ public:
 	static double counts(const double exposure,
 	                     const double magnitude) {
 		return exposure * pow(10.0, -magnitude / 2.5);
+	}
+
+	/*
+		Function that outputs the 3 sigma uncertainties in RA and DEC directions, in units of mm
+		Interpolates the dRA and dDEC values from two Ephemeris objects and converts them from 
+		arcseconds to mm, then formats it approtiately
+	*/
+	static string uncertainties(const Ephemeris& before, 
+	                            const Ephemeris& after, 
+	                            const double t) {
+		// these two in arcsecs
+		double dra  = linInterp(before.dRA(),  before.julian(), after.dRA(),  after.julian(), t);
+		double ddec = linInterp(before.dDEC(), before.julian(), after.dDEC(), after.julian(), t);
+		// these two in mm
+		double dx = dra  / 67.12;
+		double dy = ddec / 67.12;
+		// formatting
+		char buf[50];
+		sprintf(buf, "x(+-%.3f) y(+-%.3f)", dx, dy);
+		return string(buf);
 	}
 };
 

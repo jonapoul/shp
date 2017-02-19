@@ -111,8 +111,8 @@ public:
 	/*
 		Checks whether the plate is missing from the plate archive room
 	*/
-	bool isMissing(const vector<int>& blacklist) {
-		for (int id : blacklist) {
+	bool isMissing(const vector<int>& missingList) {
+		for (int id : missingList) {
 			if (this->id() == id) return true;
 		}
 		return false;
@@ -296,7 +296,8 @@ public:
 	                         const vector<double>& countLim, 
 	                         const vector<pair<double,double>>& start, 
 	                         const vector<pair<double,double>>& mid, 
-	                         const vector<pair<double,double>>& end) {
+	                         const vector<pair<double,double>>& end, 
+	                         const vector<string>& uncertainties) {
 
 		vector<pair<double,double>> middle;
 		for (auto m : mid) {
@@ -304,7 +305,7 @@ public:
 			double y = radsToMM(m.second);
 			middle.push_back({x, y});
 		}
-		const int SIZE = 42;	// defines width of each printed data box
+		const int SIZE = 48;	// defines width of each printed data box
 		size_t length;
 
 		for (int i = 0; i < int(p.size()); i += 2) {
@@ -353,12 +354,12 @@ public:
 
 			// Object's RA/DEC coordinates in degrees
 			char buffer7[50], buffer8[50];
-			sprintf(buffer7, "\tObject Coords  = (%.3f, %.3f) deg", c[i].getDegRA(), c[i].getDegDEC());
+			sprintf(buffer7, "\tObject Coords  = (%.3f, %.3f)°", c[i].getDegRA(), c[i].getDegDEC());
 			ss << buffer7;
 			length = SIZE-ss.str().length();
-			ss << string(length, ' ') << "| ";
+			ss << string(length+1, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer8, "\tObject Coords  = (%.3f, %.3f) deg", c[i+1].getDegRA(), c[i+1].getDegDEC());
+				sprintf(buffer8, "\tObject Coords  = (%.3f, %.3f)°", c[i+1].getDegRA(), c[i+1].getDegDEC());
 				ss << buffer8;
 			}
 			cout << ss.str() << '\n';
@@ -373,6 +374,19 @@ public:
 			if (canPrint) {
 				sprintf(buffer10, "\tPlate Position = (%.3f, %.3f) mm", middle[i+1].first, middle[i+1].second);
 				ss << buffer10;
+			}
+			cout << ss.str() << '\n';
+			ss.str("");
+
+			// x/y positional uncertainties in mm
+			char buffer23[50], buffer24[50];
+			sprintf(buffer23, "\tUncertainty    = %s mm", uncertainties[i].c_str());
+			ss << buffer23;
+			length = SIZE-ss.str().length();
+			ss << string(length, ' ') << "| ";
+			if (canPrint) {
+				sprintf(buffer24, "\tUncertainty    = %s mm", uncertainties[i+1].c_str());
+				ss << buffer24;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -475,7 +489,7 @@ public:
 			else
 				cout << string(SIZE*1.2, '-') << '\n';
 		}
-		for (int i = 0; true && i < middle.size(); i++) {
+		for (int i = 0; false && i < middle.size(); i++) {
 			double snr = Ephemeris::counts(p[i].exposure(), mag[i]) / p[i].countLimit();
 			printf("%d %.3f %.3f %.3f %.3f\n", p[i].id(), p[i].julian(), snr, middle[i].first, middle[i].second);
 		}
@@ -619,7 +633,7 @@ public:
 			cout << " matched, but " << (tooFaintCount==1 ? "has" : "have") << " a Signal-to-Noise Ratio below 12:\n\t";
 			for (int j = 0; j < tooFaintCount; j++) {
 				printf("%5d ", tooFaint[j]);
-				if ((j+1) % 5 == 0 && (j+1) < tooFaintCount) cout << "\n\t";
+				if ((j+1) % 7 == 0 && (j+1) < tooFaintCount) cout << "\n\t";
 			}
 			if (filterSNR) {
 				cout << "\nAdd a -snr flag to the command to ignore SNR filtering\n";
@@ -629,7 +643,7 @@ public:
 			cout << "SNR filtering has been ignored\n";
 		}
 		if (matchCount == 0 && tooFaintCount == 0 && missingPlateCount == 0) {
-			cout << "Closest angular distance to a plate centre was " << closest << " degrees\n";
+			cout << "Closest angular distance to a plate centre was " << closest << "°\n";
 		}
 	}
 
@@ -645,6 +659,7 @@ public:
 			cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << s;
 			cout << " between " << firstDate << " and " << lastDate << '\n';
 			cout << "The shown dates/times represent the middle of the exposure, not the start\n";
+			cout << "Uncertainties are to 3 sigma, i.e. 99.7\% certainty\n";
 		} else {
 			cout << "No matches found for " << s << "!\n";
 		}
