@@ -383,7 +383,7 @@ public:
 			double dy = end[i].second - start[i].second;
 			double drift = sqrt(dx*dx + dy*dy);
 			sprintf(buffer11, "\tDrift length   = %.2f mm", drift);
-			sprintf(buffer13, "\tDrift vector   = (%.2f, %.2f)", dx, dy);
+			sprintf(buffer13, "\tDrift vector   = (%.3f, %.3f)", dx, dy);
 			ss << buffer11;
 			length = SIZE-ss.str().length();
 			ss << string(length, ' ') << "| ";
@@ -392,7 +392,7 @@ public:
 				dy = end[i+1].second - start[i+1].second;
 				drift = sqrt(dx*dx + dy*dy);
 				sprintf(buffer12, "\tDrift length   = %.2f mm", drift);
-				sprintf(buffer14, "\tDrift vector   = (%.2f, %.2f)", dx, dy);
+				sprintf(buffer14, "\tDrift vector   = (%.3f, %.3f)", dx, dy);
 				ss << buffer12;
 			}
 			cout << ss.str() << '\n';
@@ -459,12 +459,12 @@ public:
 
 			// Plate filter peak wavelength
 			char buffer21[50], buffer22[50];
-			sprintf(buffer21, "\tFilter λ peak  = %d Å", p[i].wavelength());
+			sprintf(buffer21, "\tFilter λ peak  = %dÅ", p[i].wavelength());
 			ss << buffer21;
 			length = SIZE-ss.str().length();
 			ss << string(length+2, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer22, "\tFilter λ peak  = %d Å", p[i].wavelength());
+				sprintf(buffer22, "\tFilter λ peak  = %dÅ", p[i].wavelength());
 				ss << buffer22;
 			}
 			cout << ss.str() << '\n';
@@ -475,9 +475,10 @@ public:
 			else
 				cout << string(SIZE*1.2, '-') << '\n';
 		}
-		/*for (int i = 0; i < middle.size(); i++) {
-			printf("%d %.3f (%.3f %.3f) (%.3f %.3f) (%.3f %.3f)\n", p[i].id(), p[i].julian(), start[i].first, start[i].second, middle[i].first, middle[i].second, end[i].first, end[i].second);
-		}*/
+		for (int i = 0; true && i < middle.size(); i++) {
+			double snr = Ephemeris::counts(p[i].exposure(), mag[i]) / p[i].countLimit();
+			printf("%d %.3f %.3f %.3f %.3f\n", p[i].id(), p[i].julian(), snr, middle[i].first, middle[i].second);
+		}
 	}
 	
 	/*
@@ -627,7 +628,7 @@ public:
 		if (!filterSNR) {
 			cout << "SNR filtering has been ignored\n";
 		}
-		if (matchCount == 0) {
+		if (matchCount == 0 && tooFaintCount == 0 && missingPlateCount == 0) {
 			cout << "Closest angular distance to a plate centre was " << closest << " degrees\n";
 		}
 	}
@@ -657,61 +658,60 @@ public:
 			and 
 		http://www.roe.ac.uk/ifa/wfau/ukstu/pltcat.html#prefix
 	*/
-	static int findWavelength(const string& prefix, const string& filter) {
+	static int findWavelength(const string& prefix, 
+	                          const string& filter) {
+
 		// special filters
-		if (filter == "AAO372") return 3727;
-		if (filter == "AAO460") return 4600;
-		if (filter == "AAO468") return 4686;
-		if (filter == "AAO486") return 4860;
-		if (filter == "AAO500") return 5007;
-		if (filter == "AAO540") return 5400;
-		if (filter == "AAO562") return 5620;
-		if (filter == "AAO587") return 5870;
-		if (filter == "AAO630") return 6300;
-		if (filter == "AAO643") return 6430;
-		if (filter == "AAO672") return 6725;
-		if (filter == "AAO656") return 6567;
-		if (filter == "MB 675") return 6751;
-		if (filter == "MB 569") return 5696;
-		if (filter == "MB 666") return 6668;
-		if (filter == "MB 657") return 6567;
+		string filterPrefix = filter.substr(0, 3);
+		if (filterPrefix == "AAO") {
+			if (filter == "AAO372") return 3727;
+			if (filter == "AAO460") return 4600;
+			if (filter == "AAO468") return 4686;
+			if (filter == "AAO486") return 4860;
+			if (filter == "AAO500") return 5007;
+			if (filter == "AAO540") return 5400;
+			if (filter == "AAO562") return 5620;
+			if (filter == "AAO587") return 5870;
+			if (filter == "AAO630") return 6300;
+			if (filter == "AAO643") return 6430;
+			if (filter == "AAO672") return 6725;
+			if (filter == "AAO656") return 6567;
+		} else if (filterPrefix == "MB ") {
+			if (filter == "MB 486") return 4861;
+			if (filter == "MB 675") return 6751;
+			if (filter == "MB 569") return 5696;
+			if (filter == "MB 666") return 6668;
+			if (filter == "MB 657") return 6567;
+		} else if (filterPrefix == "HZ ") {
+			if (filter == "HZ 580") return 5800;
+			if (filter == "HZ 600") return 6000;
+			if (filter == "HZ 620") return 6200;
+			if (filter == "HZ 640") return 6400;
+			if (filter == "HZ 660") return 6600;
+		}
 		if (filter == "RG630H") return 6567;
-		if (filter == "MB 486") return 4861;
-		if (filter == "HZ 580") return 5800;
-		if (filter == "HZ 600") return 6000;
-		if (filter == "HZ 620") return 6200;
-		if (filter == "HZ 640") return 6400;
-		if (filter == "HZ 660") return 6600;
 
 		// singular prefixes
-		if (prefix[0] == ' ') {
-			switch (prefix[1]) {
-				case 'U' : return 3550;
-				case 'B' : return 3850;
-				case 'J' : return 3950;
-				case 'V' : return 4950;
-				case 'R' : return 6300;
-				case 'I' : return 7150;
-				case 'Z' : return 10000;
-				default  : break;
-			}
-		} 
+		if (prefix == " U") return 3550;
+		if (prefix == " B") return 3850;
+		if (prefix == " J") return 3950;
+		if (prefix == " V") return 4950;
+		if (prefix == " R") return 6300;
+		if (prefix == " I") return 7150;
+		if (prefix == " Z") return 10000;
+
 		// two letter prefixes
-		else {
-			switch (prefix[0]) {
-				case 'U' : return 3050;
-				case 'B' : return 3850;
-				case 'J' : return 3950;
-				case 'Y' : return 4550;
-				case 'V' : return 4950;
-				case 'O' : return 5900;
-				case 'R' : return 6300;
-				case 'I' : return 7150;
-				case 'W' : return 8300;
-				case 'Z' : return 10000;
-				default  : break;
-			}
-		}
+		if (prefix[0] == 'U') return 3050;
+		if (prefix[0] == 'B') return 3850;
+		if (prefix[0] == 'J') return 3950;
+		if (prefix[0] == 'Y') return 4550;
+		if (prefix[0] == 'V') return 4950;
+		if (prefix[0] == 'O') return 5900;
+		if (prefix[0] == 'R') return 6300;
+		if (prefix[0] == 'I') return 7150;
+		if (prefix[0] == 'W') return 8300;
+		if (prefix[0] == 'Z') return 10000;
+		
 		// default, assumes visible wavelength
 		return 5300;
 	}

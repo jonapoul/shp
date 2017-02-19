@@ -175,9 +175,10 @@ public:
 			return;
 		}
 		// picking up whether the user wants to ignore signal-to-noise ratio filtering
-		filterSNR = true;
-		if (string(argv[1]) == "-snr")
-			filterSNR = false;
+		for (int i = 1; i < argc; i++) {
+			if (string(argv[i]) == "-snr")
+				filterSNR = false; 
+		}
 
 		string param = string(argv[1]);
 		for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
@@ -195,13 +196,16 @@ public:
 		vector<string> comets, planets, useless;
 		// picking up all filenames from tboth folders
 		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/comets")) {
-			if (is_regular_file(itr.path())) comets.push_back(itr.path().stem().string());
+			if (is_regular_file(itr.path())) 
+				comets.push_back(itr.path().stem().string());
 		}
 		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/planets")) {
-			if (is_regular_file(itr.path())) planets.push_back(itr.path().stem().string());
+			if (is_regular_file(itr.path())) 
+				planets.push_back(itr.path().stem().string());
 		}
 		for (auto& itr : fs::recursive_directory_iterator("./ephemeris/useless")) {
-			if (is_regular_file(itr.path())) useless.push_back(itr.path().stem().string());
+			if (is_regular_file(itr.path())) 
+				useless.push_back(itr.path().stem().string());
 		}
 		sort(planets.begin(), planets.end(), less<string>());
 		sort(comets.begin(),  comets.end(),  less<string>());
@@ -215,21 +219,29 @@ public:
 
 		// printing all the file options
 		cout << "   Planets:\n";
-		for (size_t j = 0; j < planets.size(); j += 3) {
+		for (size_t j = 0; j < planets.size(); j += 5) {
 			cout << '\t' << planets[j] << string(maxLength+2-planets[j].length(), ' ');
 			if (j+1 < planets.size()) 
 				cout << '\t' << planets[j+1] << string(maxLength+2-planets[j+1].length(), ' ');
 			if (j+2 < planets.size())
 				cout << '\t' << planets[j+2] << string(maxLength+2-planets[j+2].length(), ' ');
+			if (j+3 < planets.size())
+				cout << '\t' << planets[j+3] << string(maxLength+2-planets[j+3].length(), ' ');
+			if (j+4 < planets.size())
+				cout << '\t' << planets[j+4] << string(maxLength+2-planets[j+4].length(), ' ');
 			cout << '\n';
 		}
 		cout << "\n   Comets:\n";
-		for (size_t j = 0; j < comets.size(); j += 3) {
+		for (size_t j = 0; j < comets.size(); j += 5) {
 			cout << '\t' << comets[j] << string(maxLength+2-comets[j].length(), ' ');
 			if (j+1 < comets.size()) 
 				cout << '\t' << comets[j+1] << string(maxLength+2-comets[j+1].length(), ' ');
 			if (j+2 < comets.size())
 				cout << '\t' << comets[j+2] << string(maxLength+2-comets[j+2].length(), ' ');
+			if (j+3 < comets.size())
+				cout << '\t' << comets[j+3] << string(maxLength+2-comets[j+3].length(), ' ');
+			if (j+4 < comets.size())
+				cout << '\t' << comets[j+4] << string(maxLength+2-comets[j+4].length(), ' ');
 			cout << '\n';
 		}
 		cout << "\n   Useless:\n";
@@ -239,11 +251,15 @@ public:
 				cout << '\t' << useless[j+1] << string(maxLength+2-useless[j+1].length(), ' ');
 			if (j+2 < useless.size())
 				cout << '\t' << useless[j+2] << string(maxLength+2-useless[j+2].length(), ' ');
+			if (j+3 < useless.size())
+				cout << '\t' << useless[j+3] << string(maxLength+2-useless[j+3].length(), ' ');
+			if (j+4 < useless.size())
+				cout << '\t' << useless[j+4] << string(maxLength+2-useless[j+4].length(), ' ');
 			cout << '\n';
 		}
 
 		// taking input from the user
-		cout << "\nEnter option (add \"-snr\" to remove SNR filtering): ";
+		cout << "\nEnter option: ";
 		string temp, output;
 		getline(cin, temp);
 		size_t space = temp.find(" ");

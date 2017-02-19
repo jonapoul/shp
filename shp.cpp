@@ -10,7 +10,7 @@ using namespace std;
 int main(int argc, char* argv[]) {	
 	// determining the program parameters from command line arguments
 	string objectName;
-	bool filterSNR;
+	bool filterSNR = true;
 	Ephemeris::determineParameters(argc, argv, objectName, filterSNR);
 
 	chrono::time_point<chrono::system_clock> start = chrono::system_clock::now();
@@ -130,9 +130,6 @@ int main(int argc, char* argv[]) {
 
 
 // TO DO
-	// read filter wavelength into a plate member variable
-		// convert to a suggested colour for comparison images? Maybe just leave as a wavelength
-
 	// look at data reduction manual for what i'll be doing after
 		// precision?
 
