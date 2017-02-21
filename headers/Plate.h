@@ -9,9 +9,8 @@
 #include <boost/algorithm/string.hpp>
 #include "Coords.h"
 #include "Ephemeris.h"
+#include "Parameters.h"
 using namespace std;
-
-#define PLATE_SIZE 354.5
 
 class Plate {
 private:
@@ -114,6 +113,7 @@ public:
 	bool isMissing(const vector<int>& missingList) {
 		for (int id : missingList) {
 			if (this->id() == id) return true;
+			if (this->id() >  id) return false;
 		}
 		return false;
 	}
@@ -354,12 +354,12 @@ public:
 
 			// Object's RA/DEC coordinates in degrees
 			char buffer7[50], buffer8[50];
-			sprintf(buffer7, "\tObject Coords  = (%.3f, %.3f)°", c[i].getDegRA(), c[i].getDegDEC());
+			sprintf(buffer7, "\tObject Coords  = (%.5f, %.5f)°", c[i].getDegRA(), c[i].getDegDEC());
 			ss << buffer7;
 			length = SIZE-ss.str().length();
 			ss << string(length+1, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer8, "\tObject Coords  = (%.3f, %.3f)°", c[i+1].getDegRA(), c[i+1].getDegDEC());
+				sprintf(buffer8, "\tObject Coords  = (%.5f, %.5f)°", c[i+1].getDegRA(), c[i+1].getDegDEC());
 				ss << buffer8;
 			}
 			cout << ss.str() << '\n';
@@ -383,7 +383,7 @@ public:
 			sprintf(buffer23, "\tUncertainty    = %s mm", uncertainties[i].c_str());
 			ss << buffer23;
 			length = SIZE-ss.str().length();
-			ss << string(length, ' ') << "| ";
+			ss << string(length+2, ' ') << "| ";
 			if (canPrint) {
 				sprintf(buffer24, "\tUncertainty    = %s mm", uncertainties[i+1].c_str());
 				ss << buffer24;
@@ -597,14 +597,14 @@ public:
 		This gives the output as relative to the bottom left corner of the plate
 	*/
 	static double radsToMM(const double rads) {
-		return (rads * 3600.0 * 180.0) / (67.12 * M_PI) + (PLATE_SIZE / 2.0);
+		return (rads * 3600.0 * 180.0) / (ARCSECS_PER_MM * M_PI) + (PLATE_SIZE / 2.0);
 	}
 
 	/*
 		Inverse of the above
 	*/
 	static double mmToRads(const double mm) {
-		return (mm - (PLATE_SIZE / 2.0)) * (67.12 * M_PI) / (3600.0 * 180.0);
+		return (mm - (PLATE_SIZE / 2.0)) * (ARCSECS_PER_MM * M_PI) / (3600.0 * 180.0);
 	}
 
 	/*
@@ -630,7 +630,7 @@ public:
 		}
 		if (tooFaintCount > 0) {
 			cout << tooFaintCount << (matchCount>0||tooFaintCount>0?" other":"") << " plate" << (tooFaintCount==1?"":"s");
-			cout << " matched, but " << (tooFaintCount==1 ? "has" : "have") << " a Signal-to-Noise Ratio below 12:\n\t";
+			cout << " matched, but " << (tooFaintCount==1 ? "has" : "have") << " a Signal-to-Noise Ratio below SNR_LIMIT:\n\t";
 			for (int j = 0; j < tooFaintCount; j++) {
 				printf("%5d ", tooFaint[j]);
 				if ((j+1) % 7 == 0 && (j+1) < tooFaintCount) cout << "\n\t";
@@ -659,7 +659,7 @@ public:
 			cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << s;
 			cout << " between " << firstDate << " and " << lastDate << '\n';
 			cout << "The shown dates/times represent the middle of the exposure, not the start\n";
-			cout << "Uncertainties are to 3 sigma, i.e. 99.7\% certainty\n";
+			cout << "Uncertainties represent an ellipse up to 3 sigma, i.e. 99.7% certainty\n";
 		} else {
 			cout << "No matches found for " << s << "!\n";
 		}

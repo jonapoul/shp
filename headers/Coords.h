@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <math.h>
+#include "Parameters.h"
 using namespace std;
 
 class Coords {
@@ -12,28 +13,26 @@ private:
 	double m_radDEC;
 	double m_degRA;
 	double m_degDEC;
-	static constexpr double degToRad = M_PI/180.0;
-	static constexpr double radToDeg = 180.0/M_PI;
 
 public:
 	Coords(const double degRA = 0.0, 
 	       const double degDEC = 0.0)
 			: m_degRA(degRA), m_degDEC(degDEC) { 
-		m_radRA = degRA*degToRad; 
-		m_radDEC = degDEC*degToRad; 
+		m_radRA  = degRA  * DEG_TO_RAD; 
+		m_radDEC = degDEC * DEG_TO_RAD; 
 	}
 	Coords(const Coords& c)
 			: m_radRA(c.m_radRA), m_radDEC(c.m_radDEC), m_degRA(c.m_degRA), m_degDEC(c.m_degDEC) { 
 	}
 
-	inline double getDegRA() const { return m_degRA; }
+	inline double getDegRA()  const { return m_degRA; }
 	inline double getDegDEC() const { return m_degDEC; }
-	inline double getRadRA() const { return m_radRA; }
+	inline double getRadRA()  const { return m_radRA; }
 	inline double getRadDEC() const { return m_radDEC; }
-	inline void setDegRA(const double r) { m_degRA = r; m_radRA = r*degToRad; }
-	inline void setDegDEC(const double d) { m_degDEC = d; m_radDEC = d*degToRad; }
-	inline void setRadRA(const double r) { m_radRA = r;  m_degRA = r*radToDeg; }
-	inline void setRadDEC(const double d) { m_radDEC = d; m_degDEC = d*radToDeg; }
+	inline void setDegRA(const double r)  { m_degRA = r;  m_radRA  = r * DEG_TO_RAD; }
+	inline void setDegDEC(const double d) { m_degDEC = d; m_radDEC = d * DEG_TO_RAD; }
+	inline void setRadRA(const double r)  { m_radRA = r;  m_degRA  = r * RAD_TO_DEG; }
+	inline void setRadDEC(const double d) { m_radDEC = d; m_degDEC = d * RAD_TO_DEG; }
 
 	/*
 		Takes a plate catalog record string and pulls the RA/DEC coordinates from it
@@ -43,7 +42,7 @@ public:
 		double mins = stod(record.substr(22,2));
 		double secs = stod(record.substr(24,1)) * 6.0;
 		m_degRA = hour*15.0 + mins/4.0 + secs/240.0;
-		m_radRA = m_degRA * degToRad;
+		m_radRA = m_degRA * DEG_TO_RAD;
 
 		double degrees = stod(record.substr(26,2));
 		double arcmins = stod(record.substr(28,2));
@@ -51,7 +50,7 @@ public:
 		bool isPositive = (record[25] != '-');
 		m_degDEC = degrees + arcmins/60.0 + arcsecs/3600.0;
 		m_degDEC *= (isPositive ? 1.0 : -1.0);
-		m_radDEC = m_degDEC * degToRad;
+		m_radDEC = m_degDEC * DEG_TO_RAD;
 	}
 
 	/*
@@ -124,7 +123,7 @@ public:
 	static double angularDistance(const Coords& a, 
 	                              const Coords& b, 
 	                              const bool inDegrees = true) {
-		return acos(cosAngularDistance(a, b)) * (inDegrees ? radToDeg : 1.0);
+		return acos(cosAngularDistance(a, b)) * (inDegrees ? RAD_TO_DEG : 1.0);
 	}
 
 	/*

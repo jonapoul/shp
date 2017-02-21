@@ -10,6 +10,7 @@
 #include <experimental/filesystem>
 #include <boost/algorithm/string.hpp>
 #include "Coords.h"
+#include "Parameters.h"
 
 using namespace std;
 namespace fs = experimental::filesystem;
@@ -165,15 +166,17 @@ public:
 	}
 
 	/*
-		Takes the argument passed to the program and finds what ephemeris file to load by recursively searching through the ./ephemeris/ folder and testing if the argument exists as a .txt filename
+		Takes the argument passed to the program and finds what ephemeris file to load by recursively searching 
+		through the ./ephemeris/ folder and testing if the argument exists as a .txt filename
 	*/
 	static void determineParameters(const int argc, 
 	                                char* argv[], 
 	                                string& name,
 	                                bool& filterSNR) {
 		name = "";
+		// if not enough 
 		if (argc < 2) {
-			name = printFiles(filterSNR);
+			printFiles(name, filterSNR);
 			return;
 		}
 		// picking up whether the user wants to ignore signal-to-noise ratio filtering
@@ -191,10 +194,10 @@ public:
 			}
 		}
 		// if the argument doesnt exist as a filename, default to Ceres and pass a flag back to the main program
-		name = printFiles(filterSNR);
+		printFiles(name, filterSNR);
 	}
 
-	static string printFiles(bool& filterSNR) {
+	static void printFiles(string& name, bool& filterSNR) {
 		vector< vector<string> > folders;
 		vector<string> folderNames;
 		size_t maxLength = 0;
@@ -239,35 +242,36 @@ public:
 		}
 
 		// taking input from the user
-		cout << "\nEnter option: ";
-		string temp, output;
-		getline(cin, temp);
-		size_t space = temp.find(" ");
-		if (space != string::npos) {
-			output = temp.substr(0, space);
-			string flag = temp.substr(space+1);
-			filterSNR = !(flag == "-snr");
-		} else {
-			filterSNR = true;
-			output = temp;
-		}
-		for (auto& c : output) c = tolower(c);
-		bool choiceIsValid = false;
-		while (!choiceIsValid) {
-			// if the given string matches any filename in the ephemerides folders, return that string
-			for (auto& folder : folders) {
-				for (auto& file : folder) {
-					if (file == output) return output;
+		cout << "Enter option: ";
+		string temp, output;		
+		while (true) {
+			getline(cin, temp);
+			// convert input to all lowercase, for convenience
+			for (auto& c : output) c = tolower(c);
+			size_t space = temp.find(" ");
+			// if the input is two or more words
+			if (space != string::npos) {
+				output = temp.substr(0, space);
+				string secondWord = temp.substr(space+1);
+				// if the second word is -snr, set filtering flag to false
+				filterSNR = !(secondWord == "-snr");
+			} else {
+				filterSNR = true;
+				output = temp;
+			}
+			// go through every filename and compare the input word
+			for (const auto& folder : folders) {
+				for (const auto& file : folder) {
+					if (file == output) {
+						// if it matches, return it
+						name = output;
+						return;
+					}
 				}
 			}
-			if (!choiceIsValid) {
-				cout << "That file doesn't exist, try again: ";
-				cin >> output;
-				for (auto& c : output) c = tolower(c);
-			}
+			// if no matches, ask for another and try again
+			cout << "That filename doesn't exist, try again: ";
 		}
-		// just in case it breaks
-		return output;
 	}
 
 	/*
@@ -290,11 +294,11 @@ public:
 		double dra  = linInterp(before.dRA(),  before.julian(), after.dRA(),  after.julian(), t);
 		double ddec = linInterp(before.dDEC(), before.julian(), after.dDEC(), after.julian(), t);
 		// these two in mm
-		double dx = dra  / 67.12;
-		double dy = ddec / 67.12;
+		double dx = dra  / ARCSECS_PER_MM;
+		double dy = ddec / ARCSECS_PER_MM;
 		// formatting
 		char buf[50];
-		sprintf(buf, "x(+-%.3f) y(+-%.3f)", dx, dy);
+		sprintf(buf, "(±%.3f, ±%.3f)", dx, dy);
 		return string(buf);
 	}
 };

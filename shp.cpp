@@ -5,6 +5,8 @@
 #include <utility>
 #include "headers/Ephemeris.h"
 #include "headers/Plate.h"
+#include "headers/Parameters.h"
+
 using namespace std;
 
 int main(int argc, char* argv[]) {	
@@ -16,7 +18,7 @@ int main(int argc, char* argv[]) {
 	chrono::time_point<chrono::system_clock> start = chrono::system_clock::now();
 
 	// an array of plate IDs that I couldn't find in the archive room, just so i can disregard any matches with these
-	vector<int> missingList = {4910, 14587, 15320, 17266};
+	vector<int> missingList = {2377, 4910, 13772, 14587, 15320, 17266};
 	// reading all valid plate records
 	vector<Plate> plates;
 	Plate::readPlateCatalog(plates, "catalog.txt");
@@ -100,8 +102,8 @@ int main(int argc, char* argv[]) {
 					double counts = Ephemeris::counts(p.exposure(), magnitude);
 					double countLimit = p.countLimit();
 					double SNR = counts / countLimit;
-					// 12 is a totally empirical limit, can be changed if necessary
-					if (filterSNR && SNR < 12) {
+					// this is a totally empirical limit, can be changed if necessary
+					if (filterSNR && SNR < SNR_LIMIT) {
 						tooFaint.push_back(p.id());
 						continue;
 					}
@@ -136,6 +138,8 @@ int main(int argc, char* argv[]) {
 
 
 // TO DO
+	// look into time transformation for khufu, way more RA error than DEC
+	
 	// look at data reduction manual for what i'll be doing after
 		// precision?
 
@@ -145,10 +149,4 @@ int main(int argc, char* argv[]) {
 
 	// try to incorporate the errors in RA/DEC from the ephemeris somewhere
 		// print 1sig or 3sig? ASK NIGEL
-		// Add another line underneath object position:
-			// Errors     = x(+a -b) y(+c -d) mm
-			// or just squish it down to x(+-a) y(+-b) if they both round to the same
-		// make a function that outputs a string for a given pair of ephs (before and after)
-		// rough estimate for error region on the plate
-		// use this to pipe back more accurate measurements to minor planet centre maybe?
 		// error comes from extrapolating object paths backwards if they were recently discovered, eg Eris/Makemake
