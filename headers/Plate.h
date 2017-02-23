@@ -75,15 +75,15 @@ public:
 		catch (...) { return false; }
 		// julian date calculated from gregorian
 		m_gregorian = buffer.substr(30, 6);
-		string lst = buffer.substr(36, 4);
+		string lst  = buffer.substr(36, 4);
 		// if any of the digits of the lst are blank spaces/letters, reject it
 		if (!isdigit(lst[0]) || 
 		    !isdigit(lst[1]) || 
 		    !isdigit(lst[2]) || 
 		    !isdigit(lst[3]))
 			return false;
-		
-		m_julian = convertDate(m_gregorian, lst);
+		bool isDebug = (m_id == 5528) ? false : false;
+		m_julian = convertDate(m_gregorian, lst, isDebug);
 
 		// adding half of the exposure time to the julian date
 		// this means that the outputted position is the position of the object halfway through the exposure
@@ -111,9 +111,8 @@ public:
 		Checks whether the plate is missing from the plate archive room
 	*/
 	bool isMissing(const vector<int>& missingList) {
-		for (int id : missingList) {
+		for (const int id : missingList) {
 			if (this->id() == id) return true;
-			if (this->id() >  id) return false;
 		}
 		return false;
 	}
@@ -137,13 +136,15 @@ public:
 		int mins  = stoi(lst.substr(2, 2));
 
 		double julian = gregorianToJulian(double(day), month, year);
-		double gst = LSTtoGST(hour, mins, 0.0, 149.0644);
+		double gst = LSTtoGST(hour, mins, 0.0, SITE_LONGITUDE);
 		double ut = GSTtoUT(gst, julian);
-		double frac = (ut) / 24.0;
+		double frac = ut / 24.0;
 		julian += frac;
 
 		if (isDebug) {		// date conversion debugging
-			printf("\nJD   = %.5f\n", julian-frac);
+			printf("Date = %s\n", gregorianDate.c_str());
+			printf("LST  = %s\n", lst.c_str());
+			printf("JD   = %.5f\n", julian-frac);
 			printf("GST  = %.3f\n", gst);
 			printf("UT   = %.3f\n", ut);
 			printf("FRAC = %.3f\n", frac);
@@ -396,8 +397,8 @@ public:
 			double dx = end[i].first  - start[i].first;
 			double dy = end[i].second - start[i].second;
 			double drift = sqrt(dx*dx + dy*dy);
-			sprintf(buffer11, "\tDrift length   = %.2f mm", drift);
-			sprintf(buffer13, "\tDrift vector   = (%.3f, %.3f)", dx, dy);
+			sprintf(buffer11, "\tTrail length   = %.2f mm", drift);
+			sprintf(buffer13, "\tTrail vector   = (%.3f, %.3f)", dx, dy);
 			ss << buffer11;
 			length = SIZE-ss.str().length();
 			ss << string(length, ' ') << "| ";
@@ -405,8 +406,8 @@ public:
 				dx = end[i+1].first  - start[i+1].first;
 				dy = end[i+1].second - start[i+1].second;
 				drift = sqrt(dx*dx + dy*dy);
-				sprintf(buffer12, "\tDrift length   = %.2f mm", drift);
-				sprintf(buffer14, "\tDrift vector   = (%.3f, %.3f)", dx, dy);
+				sprintf(buffer12, "\tTrail length   = %.2f mm", drift);
+				sprintf(buffer14, "\tTrail vector   = (%.3f, %.3f)", dx, dy);
 				ss << buffer12;
 			}
 			cout << ss.str() << '\n';
@@ -422,12 +423,20 @@ public:
 
 			// Object's apparent magnitude on the plate
 			char buffer15[50], buffer16[50];
-			sprintf(buffer15, "\tMagnitude      = %.2f", mag[i]);
+			if ( abs(mag[i]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
+				sprintf(buffer15, "\tMagnitude      = UNKNOWN");
+			} else {
+				sprintf(buffer15, "\tMagnitude      = %.2f", mag[i]);
+			}
 			ss << buffer15;
 			length = SIZE-ss.str().length();
 			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer16, "\tMagnitude      = %.2f", mag[i+1]);
+				if ( abs(mag[i+1]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
+					sprintf(buffer16, "\tMagnitude      = UNKNOWN");
+				} else {
+					sprintf(buffer16, "\tMagnitude      = %.2f", mag[i+1]);
+				}
 				ss << buffer16;
 			}
 			cout << ss.str() << '\n';
@@ -460,12 +469,24 @@ public:
 			char buffer19[50], buffer20[50];
 			double snr1 = Ephemeris::counts(p[i].exposure(), mag[i]) / p[i].countLimit();
 			double snr2 = Ephemeris::counts(p[i+1].exposure(), mag[i+1]) / p[i+1].countLimit();
-			sprintf(buffer19, "\tSNR            = %.4f", snr1);
+			if ( abs(mag[i]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
+				sprintf(buffer19, "\tSNR            = UNKNOWN");
+			} else if (snr1 > 1e5){
+				sprintf(buffer19, "\tSNR            = %.2e", snr1);
+			} else {
+				sprintf(buffer19, "\tSNR            = %.4f", snr1);
+			}
 			ss << buffer19;
 			length = SIZE-ss.str().length();
 			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer20, "\tSNR            = %.4f", snr2);
+				if ( abs(mag[i+1]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
+					sprintf(buffer20, "\tSNR            = UNKNOWN");
+				} else if (snr2 > 1e5) {
+					sprintf(buffer20, "\tSNR            = %.2e", snr2);
+				} else {
+					sprintf(buffer20, "\tSNR            = %.4f", snr2);
+				}
 				ss << buffer20;
 			}
 			cout << ss.str() << '\n';
@@ -489,7 +510,7 @@ public:
 			else
 				cout << string(SIZE*1.2, '-') << '\n';
 		}
-		for (int i = 0; false && i < middle.size(); i++) {
+		for (int i = 0; PRINT_FOR_SPREADSHEET && i < middle.size(); i++) {
 			double snr = Ephemeris::counts(p[i].exposure(), mag[i]) / p[i].countLimit();
 			printf("%d %.3f %.3f %.3f %.3f\n", p[i].id(), p[i].julian(), snr, middle[i].first, middle[i].second);
 		}
@@ -630,7 +651,8 @@ public:
 		}
 		if (tooFaintCount > 0) {
 			cout << tooFaintCount << (matchCount>0||tooFaintCount>0?" other":"") << " plate" << (tooFaintCount==1?"":"s");
-			cout << " matched, but " << (tooFaintCount==1 ? "has" : "have") << " a Signal-to-Noise Ratio below SNR_LIMIT:\n\t";
+			cout << " matched, but " << (tooFaintCount==1 ? "has" : "have");
+			cout << " a Signal-to-Noise Ratio below " << SNR_LIMIT << ":\n\t";
 			for (int j = 0; j < tooFaintCount; j++) {
 				printf("%5d ", tooFaint[j]);
 				if ((j+1) % 7 == 0 && (j+1) < tooFaintCount) cout << "\n\t";

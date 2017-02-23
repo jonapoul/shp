@@ -20,7 +20,6 @@ class Ephemeris {
 private:
 	double m_day;		// time in Julian days
 	Coords m_coords;	// RA/DEC coordinates
-	double m_lst;		// Apparent Local Sidereal Time from the observing point
 	double m_mag;		// Apparent magnitude of the object in the sky
 	double m_dRA;		// 3sigma error in RA in arcseconds
 	double m_dDEC;		// 3sigma error in DEC in arcseconds
@@ -28,23 +27,20 @@ private:
 public:
 	Ephemeris(const double day=0.0, 
 	          const Coords c={}, 
-	          const double lst=0.0, 
 	          const double mag=0.0, 
 	          const double dra=0.0, 
 	          const double ddec=0.0)
-		: m_day(day), m_coords(c), m_lst(lst), m_mag(mag), m_dRA(dra), m_dDEC(ddec) { }
+		: m_day(day), m_coords(c), m_mag(mag), m_dRA(dra), m_dDEC(ddec) { }
 	Ephemeris(const Ephemeris& e)
-		: m_day(e.m_day), m_coords(e.m_coords), m_lst(e.m_lst), m_mag(e.m_mag), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
+		: m_day(e.m_day), m_coords(e.m_coords), m_mag(e.m_mag), m_dRA(e.m_dRA), m_dDEC(e.m_dDEC) { }
 
 	inline double julian() const { return m_day; }
 	inline Coords coords() const { return m_coords; }
-	inline double lst()	const { return m_lst; }
 	inline double mag() const { return m_mag; }
 	inline double dRA() const { return m_dRA; }
 	inline double dDEC() const { return m_dDEC; }
 	inline void setJulian(const double d) { m_day = d; }
 	inline void setCoords(const Coords& c) { m_coords = c; }
-	inline void setLST(const double lst) { m_lst = lst; }
 	inline void setMag(const double mag) { m_mag = mag; }
 	inline void setdRA(const double dra) { m_dRA = dra; }
 	inline void setdDEC(const double ddec) { m_dDEC = ddec; }
@@ -59,9 +55,9 @@ public:
 			return false;
 		string s2 = s.substr(0,18) + s.substr(21);
 		stringstream ss(s2);
-		string temp, dRA_str, dDEC_str, lstStr, magStr;
+		string temp, dRA_str, dDEC_str, magStr;
 		double ra, dec;
-		ss >> m_day >> ra >> dec >> lstStr >> magStr; 
+		ss >> m_day >> ra >> dec >> temp >> magStr; 
 		if (isSurfBrt) ss >> temp;
 		ss >> dRA_str >> dDEC_str;
 
@@ -69,8 +65,7 @@ public:
 		m_coords = Coords(ra, dec);
 
 		// checking whether some of the values are valid
-		m_mag  = (magStr   == "n.a.") ? 0.0 : stod(magStr);
-		m_lst  = (lstStr   == "n.a.") ? 0.0 : stod(lstStr);
+		m_mag  = (magStr   == "n.a.") ? UNKNOWN_MAGNITUDE : stod(magStr);
 		m_dRA  = (dRA_str  == "n.a.") ? 0.0 : stod(dRA_str);
 		m_dDEC = (dDEC_str == "n.a.") ? 0.0 : stod(dDEC_str);
 		return true;
@@ -82,7 +77,7 @@ public:
 		data lines.
 	*/
 	static void readEphemerisFile(vector<Ephemeris>& eph, 
-	                              string& filename) {
+	                              const string& filename) {
 		fs::path path;
 		bool fileDoesntExist = true;
 		for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
@@ -118,7 +113,7 @@ public:
 						eph.push_back(e);
 					}
 				}
-				// Start Of Entries, enable parsing of the buffers after this
+				// Start Of Entries, enable parsing of all lines after this one
 				if (buffer == "$$SOE") 
 					canReadEntries = true;
 			}
@@ -127,7 +122,6 @@ public:
 			cout << "Ephemeris file \"" << filename << "\" is not valid\n";
 			exit(1);
 		}
-		filename[0] = toupper(filename[0]);
 	}
 
 	/*
@@ -210,7 +204,7 @@ public:
 				fs::path path = itr.path();				
 				vector<string> files;
 				for (auto& itr : fs::recursive_directory_iterator(path)) {
-					if (is_regular_file(itr.path())) 
+						if (is_regular_file(itr.path())) 
 						files.push_back(itr.path().stem().string());
 				}
 				// sorting the files in alphabetical order
@@ -223,6 +217,21 @@ public:
 				name[0] = toupper(name[0]);
 				folderNames.push_back(name);
 				folders.push_back(files);
+			}
+		}
+		// sorting the folders into alphabetical order
+		for (int i = 0; i < folders.size()-1; i++) {
+			for (int j = 0; j < folders.size()-i-1; j++) {
+				if (folderNames[j] > folderNames[j+1]) {
+					string tempStr = folderNames[j];
+					vector<string> tempVec = folders[j];
+
+					folderNames[j] = folderNames[j+1];
+					folders[j] = folders[j+1];
+
+					folderNames[j+1] = tempStr;
+					folders[j+1] = tempVec;
+				}
 			}
 		}
 
@@ -298,7 +307,11 @@ public:
 		double dy = ddec / ARCSECS_PER_MM;
 		// formatting
 		char buf[50];
-		sprintf(buf, "(±%.3f, ±%.3f)", dx, dy);
+		if (dx > 1e5 || dy > 1e5) {
+			sprintf(buf, "(±%.2e, ±%.2e)", dx, dy);
+		} else {
+			sprintf(buf, "(±%.3f, ±%.3f)", dx, dy);
+		}
 		return string(buf);
 	}
 };

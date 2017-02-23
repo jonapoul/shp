@@ -17,8 +17,8 @@ int main(int argc, char* argv[]) {
 
 	chrono::time_point<chrono::system_clock> start = chrono::system_clock::now();
 
-	// an array of plate IDs that I couldn't find in the archive room, just so i can disregard any matches with these
-	vector<int> missingList = {2377, 4910, 13772, 14587, 15320, 17266};
+	// an array of plate IDs that I couldn't find in the archive room, just so i can disregard these plates
+	vector<int> missingList = {2377, 2380, 4910, 13772, 13944, 14587, 15320, 17266, 18890};
 	// reading all valid plate records
 	vector<Plate> plates;
 	Plate::readPlateCatalog(plates, "catalog.txt");
@@ -118,7 +118,8 @@ int main(int argc, char* argv[]) {
 					matchStart.push_back(start);
 					matchMid.push_back(mid);
 					matchEnd.push_back(end);
-					matchUncertainies.push_back(Ephemeris::uncertainties(eph[i], eph[i+1], plateDate));
+					string uncer = Ephemeris::uncertainties(eph[i], eph[i+1], plateDate);
+					matchUncertainies.push_back(uncer);
 				}
 			}
 		}
@@ -139,12 +140,13 @@ int main(int argc, char* argv[]) {
 
 // TO DO
 	// look into time transformation for khufu, way more RA error than DEC
+
+	// add option to go through every useless file to check if matchCount > 0, then print filenames
 	
 	// look at data reduction manual for what i'll be doing after
 		// precision?
 
 	// supercosmos catalogue download for images
-		// downloaded a fits file of plate 7233, it's backwards in the x direction but otherwise ok
 		// need to load it into gaia to check ra/dec accuracy via PHOTOMETRY
 
 	// try to incorporate the errors in RA/DEC from the ephemeris somewhere
