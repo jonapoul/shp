@@ -77,12 +77,16 @@ public:
 		m_gregorian = buffer.substr(30, 6);
 		string lst  = buffer.substr(36, 4);
 		// if any of the digits of the lst are blank spaces/letters, reject it
-		if (!isdigit(lst[0]) || 
+		/*if (!isdigit(lst[0]) || 
 		    !isdigit(lst[1]) || 
 		    !isdigit(lst[2]) || 
 		    !isdigit(lst[3]))
-			return false;
-		bool isDebug = (m_id == 5528) ? false : false;
+			return false;*/
+		for (auto& c : lst) {
+			if (!isdigit(c))
+				c = '0';
+		}
+		bool isDebug = (PRINT_DATE_BREAKDOWN && m_id == PLATE_TO_PRINT) ? true : false;
 		m_julian = convertDate(m_gregorian, lst, isDebug);
 
 		// adding half of the exposure time to the julian date

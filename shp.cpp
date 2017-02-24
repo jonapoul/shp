@@ -101,9 +101,9 @@ int main(int argc, char* argv[]) {
 					double magnitude = Ephemeris::linInterp(eph[i].mag(), beforeDate, eph[i+1].mag(), afterDate, plateDate);
 					double counts = Ephemeris::counts(p.exposure(), magnitude);
 					double countLimit = p.countLimit();
-					double SNR = counts / countLimit;
+					double snr = counts / countLimit;
 					// this is a totally empirical limit, can be changed if necessary
-					if (filterSNR && SNR < SNR_LIMIT) {
+					if (filterSNR && snr < SNR_LIMIT) {
 						tooFaint.push_back(p.id());
 						continue;
 					}
@@ -126,9 +126,8 @@ int main(int argc, char* argv[]) {
 	}
 
 	// printing a summary of how many plates matched, and how many were too faint/missing
-	Plate::printMatches(matchPlates, matchCoords, matchCounts, 
-	                    matchMags, matchLimMags, matchStart, 
-	                    matchMid, matchEnd, matchUncertainies);
+	Plate::printMatches(matchPlates, matchCoords, matchCounts, matchMags, matchLimMags, 
+	                    matchStart, matchMid, matchEnd, matchUncertainies);
 	Plate::printSummary(firstEphDate, lastEphDate, matchCount, objectName);
 	Plate::printMissingAndFaint(missingPlate, tooFaint, matchCount, closest, filterSNR);
 
@@ -139,16 +138,12 @@ int main(int argc, char* argv[]) {
 
 
 // TO DO
-	// look into time transformation for khufu, way more RA error than DEC
+	// take a fe pics of the close ones, plus some more distant ones
+		// 1979xb, remeasure the others too
+		// khufu
+		// others, check how high they are up the MPC list though
 
-	// add option to go through every useless file to check if matchCount > 0, then print filenames
+	// add option to go through every faint/distant file to check if matchCount > 0, then print filenames
 	
 	// look at data reduction manual for what i'll be doing after
 		// precision?
-
-	// supercosmos catalogue download for images
-		// need to load it into gaia to check ra/dec accuracy via PHOTOMETRY
-
-	// try to incorporate the errors in RA/DEC from the ephemeris somewhere
-		// print 1sig or 3sig? ASK NIGEL
-		// error comes from extrapolating object paths backwards if they were recently discovered, eg Eris/Makemake

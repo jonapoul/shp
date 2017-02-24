@@ -236,14 +236,14 @@ public:
 		}
 
 		// printing out an ordered list of all files in each folder under ./ephemeris/
-		// yes I know it's messy and a bit ad-hoc but it looks nice
+		// yes I know it's a bit messy but it comes out nice
+		int FILES_PER_LINE = 7;
 		for (size_t i = 0; i < folders.size(); i++) {
 			cout << "   " << folderNames[i] << ":\n";
-			const int FILES_PER_LINE = 6;
 			for (size_t j = 0; j < folders[i].size(); j += FILES_PER_LINE) {
 				cout << '\t';
 				for (int k = 0; j+k < folders[i].size() && k < FILES_PER_LINE; k++) {
-					cout << folders[i][j+k] << string(maxLength+5-folders[i][j+k].length(), ' ');
+					cout << folders[i][j+k] << string(maxLength+3-folders[i][j+k].length(), ' ');
 				}
 				cout << '\n';
 			}

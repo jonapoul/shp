@@ -1,7 +1,6 @@
 #ifndef PARAMETERS_H
 #define PARAMETERS_H
 
-
 // lowest signal to noise ratio of an asteroid before a match is not printed as output
 #define SNR_LIMIT 12
 
@@ -21,8 +20,13 @@
 // Longitude of Siding Springs observatory
 #define SITE_LONGITUDE 149.070222
 
-// decides whether to print out the useful data in a spreadsheet copypastable format
+// decides whether to print out the final data in a spreadsheet copypastable format at the end
 #define PRINT_FOR_SPREADSHEET false
+
+// decides whether to print a list of the steps in the date conversion process
+#define PRINT_DATE_BREAKDOWN false
+// if the above is true, prints this plate's date conversion process
+#define PLATE_TO_PRINT 14591
 
 
 #endif
