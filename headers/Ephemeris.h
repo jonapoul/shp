@@ -128,12 +128,13 @@ public:
 		Linearly interpolates a floating point number between two points
 		Intended for apparent magnitude
 	*/
-	static double linInterp(const double mag0, 
-	                        const double t0, 
-	                        const double mag1, 
-	                        const double t1, 
-	                        const double t) {
-		return mag0 + (t-t0)*(mag1-mag0)/(t1-t0);
+	template<typename T>
+	static double linInterp(const T y0, 
+	                        const T x0, 
+	                        const T y1, 
+	                        const T x1, 
+	                        const T x) {
+		return y0 + (x-x0)*(y1-y0)/(x1-x0);
 	}
 
 	/*

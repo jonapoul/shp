@@ -44,14 +44,6 @@ public:
 	inline char grade() const { return m_grade; };
 	inline double countLimit() const { return m_countLimit; }
 	inline int wavelength() const { return m_filterWL; }
-	inline void setID(const int id) { m_id = id; };
-	inline void setCoords(const Coords& c) { m_coords = c; };
-	inline void setGregorian(const string& g) { m_gregorian = g; }
-	inline void setJulian(const double j) { m_julian = j; };
-	inline void setExposure(const double e) { m_exp = e; }
-	inline void setGrade(const char grade) { m_grade = grade; };
-	inline void setCountLimit(const double lim) { m_countLimit = lim; }
-	inline void setWavelength(const int wl) { m_filterWL = wl; }
 
 	/*
 		Reads a line from the plate catalog file and fills in the relevant fields of the Plate object
