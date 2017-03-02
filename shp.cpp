@@ -7,6 +7,7 @@
 #include "headers/Ephemeris.h"
 #include "headers/Plate.h"
 #include "headers/Parameters.h"
+#include "headers/Match.h"
 namespace chr = std::chrono;
 
 int main(int argc, char* argv[]) {	
@@ -39,16 +40,9 @@ int main(int argc, char* argv[]) {
 	// possibly be on the plate. This is used as a first check before performing 
 	// a polynomial fit, to save processing time
 	double distanceThreshold = sqrt(2 * 3.2*3.2);
-	int matchCount = 0;
-
-	// arrays for holding data to be printed at the end
+	unsigned matchCount = 0;
 	std::vector<unsigned> tooFaint, missingPlate;
-	std::vector<Plate> matchPlates;
-	std::vector<Coords> matchCoords;
-	std::vector<int> matchCounts;
-	std::vector<double> matchMags, matchLimMags;
-	std::vector<std::pair<double,double>> matchStart, matchMid, matchEnd;
-	std::vector<std::string> matchUncertainies;
+	std::vector<Match> matches;
 
 	// used to determine the closest angular distance between plate centre and 
 	// object coordinates only used in case there are no matches
@@ -122,20 +116,15 @@ int main(int argc, char* argv[]) {
 						continue;
 					}
 					// xi/eta coords of the points at the start, middle and end of the exposure
-					std::pair<double,double> start, mid(xi, eta), end;
-					Plate::exposureBoundaries(p, {before,after}, 
-					                          {beforeDate,afterDate}, 
-					                          start, end);
-					// adding the relevant values to arrays to be printed at the end
-					matchCounts.push_back(++matchCount);
-					matchPlates.push_back(p);
-					matchCoords.push_back(interpedCoords);
-					matchMags.push_back(mag);
-					matchStart.push_back(start);
-					matchMid.push_back(mid);
-					matchEnd.push_back(end);
-					string uncer = Ephemeris::uncertainties(eph[i], eph[i+1], plateDate);
-					matchUncertainies.push_back(uncer);
+					std::pair<double,double> start, mid, end;
+					mid.first  = Coords::radsToMM(xi);
+					mid.second = Coords::radsToMM(eta);
+					std::pair<Coords,Coords> boundCoords(before,after);
+					std::pair<double,double> boundDates(beforeDate, afterDate);
+					Plate::exposureBoundaries(p, boundCoords, boundDates, start, end);
+					std::string uncer = Ephemeris::uncertainties(eph[i], eph[i+1], plateDate);
+					Match m(matchCount++, p, interpedCoords, mag, start, mid, end, uncer);
+					matches.push_back(m);
 				}
 			}
 		}
@@ -143,12 +132,9 @@ int main(int argc, char* argv[]) {
 
 	// printing a summary of how many plates matched, and how many were
 	// too faint/missing
-	Plate::printMatches(matchPlates, matchCoords, matchCounts, matchMags,
-	                    matchLimMags, matchStart, matchMid, matchEnd,
-	                    matchUncertainies);
+	Match::printMatches(matches);
 	Plate::printSummary(firstEphDate, lastEphDate, matchCount, objectName);
-	Plate::printMissingAndFaint(missingPlate, tooFaint, matchCount,
-	                            closest, filterSNR);
+	Plate::printMissingAndFaint(missingPlate, tooFaint, matchCount, closest, filterSNR);
 	// printing the total time taken when running the program
 	chr::duration<double> elapsed_seconds = chr::system_clock::now() - start;
 	printf("Elapsed time: %.4fs\n", elapsed_seconds.count());
@@ -156,4 +142,5 @@ int main(int argc, char* argv[]) {
 
 
 // TO DO
+	// carry on fixing printMatches
 	// add option to go through every faint/distant file to check if matchCount > 0, then print filenames

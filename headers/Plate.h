@@ -10,23 +10,24 @@
 #include "Coords.h"
 #include "Ephemeris.h"
 #include "Parameters.h"
-using namespace std;
+
+using std::cout;
 
 class Plate {
 private:
-	int id_;					// plate identification number
-	Coords coords_;		// combines RA and DEC to one object
-	string greg_;			// UT gregorian date string, formatted as yymmdd
-	double julian_;		// julian date in the middle of exposure
-	double exp_;			// exposure time in secs
-	char grade_;			// graded plate quality, A being best and C being worst
-	double countLim_;	// lowest number of photon counts on a plate below which an object isn't visible
-	int filterWL_;		// peak wavelength in angstroms
+	int id_;						// plate identification number
+	Coords coords_;			// combines RA and DEC to one object
+	std::string greg_;	// UT gregorian date string, formatted as yymmdd
+	double julian_;			// julian date in the middle of exposure
+	double exp_;				// exposure time in secs
+	char grade_;				// graded plate quality, A being best and C being worst
+	double countLim_;		// lowest number of photon counts on a plate below which an object isn't visible
+	int filterWL_;			// peak wavelength in angstroms
 
 public:
 	Plate(const int num = 0, 
 	      const Coords& c = {}, 
-	      const string& g = "", 
+	      const std::string& g = "", 
 	      const double j = 0.0, 
 	      const double exp = 0.0, 
 	      const char grade = ' ', 
@@ -40,7 +41,7 @@ public:
 
 	inline int id() const { return id_; };
 	inline Coords coords() const { return coords_; };
-	inline string gregorian() const { return greg_; }
+	inline std::string gregorian() const { return greg_; }
 	inline double julian() const { return julian_; };
 	inline double exposure() const { return exp_; }
 	inline char grade() const { return grade_; };
@@ -48,67 +49,50 @@ public:
 	inline int wavelength() const { return filterWL_; }
 
 	/*
-		Reads a line from the plate catalog file and fills in the relevant fields of the Plate object
+		Reads a line from the plate catalog file and fills in the relevant fields
+		of the Plate object.
+
 		buffer = full string representing all of one plate record
 		Outputs a boolean flag to indicate whether the plate is valid for our purposes
 	*/
-	bool parsePlateString(const string& buffer) {
-		// plate suffix column
-		// if this isn't blank, it indicates shenanigans while recording the image
+	bool parsePlateString(const std::string& buffer) {
 		// T = tracked shot, M = multiple shots, P = full-aperture prism (distorted)
-		if (buffer[7] == 'T' || buffer[7] == 'M' || buffer[7] == 'P') 
-			return false;
-		// checking for the word "TEST", so we can throw it out
-		if (buffer.substr(16,4) == "TEST" || buffer.substr(15,4) == "TEST")
-			return false;
-		// plate number, for later reference
+		if (buffer[7] == 'T' || buffer[7] == 'M' || buffer[7] == 'P') 			return false;
+		if (buffer.substr(16,4) == "TEST" || buffer.substr(15,4) == "TEST") return false;
+
 		try { id_ = stoi(buffer.substr(2, 5)); }
 		catch (...) { return false; }
-		// reading the RA/DEC coordinates in sexagesimal format
+
 		try { coords_.parseCoordsFromPlate(buffer); }
 		catch (...) { return false; }
-		// julian date calculated from gregorian
+
 		greg_ = buffer.substr(30, 6);
-		string lst  = buffer.substr(36, 4);
-		// if any of the digits of the lst are blank spaces/letters, reject it
-		/*if (!isdigit(lst[0]) || 
-		    !isdigit(lst[1]) || 
-		    !isdigit(lst[2]) || 
-		    !isdigit(lst[3]))
-			return false;*/
-		for (auto& c : lst) {
-			if (!isdigit(c))
-				c = '0';
-		}
-		bool isDebug = (PRINT_DATE_BREAKDOWN && id_ == PLATE_TO_PRINT) ? true : false;
+		std::string lst  = buffer.substr(36, 4);
+		for (auto& c : lst)
+			if (!isdigit(c)) c = '0';
+
+		bool isDebug = (PRINT_DATE_BREAKDOWN && id_ == PLATE_TO_PRINT);
 		julian_ = convertDate(greg_, lst, isDebug);
 
-		// adding half of the exposure time to the julian date
-		// this means that the outputted position is the position of the object halfway through the exposure
-		// the substring is in the format "mmmt" where t = tenth of a minute
 		try { exp_ = stod(buffer.substr(52,4)) * 6.0; }
 		catch (...) { return false; }
 		julian_ += (exp_ / 86400.0) / 2.0;
 
-		// plate quality grade, from A to C
 		grade_ = buffer[56];
-		// calculating the faintest apparent magnitude that would be visible on the plate
 		countLim_ = limitingCounts(buffer);
 		
-		// filter wavelength
-		string prefix = buffer.substr(0, 2);
-		string filter = buffer.substr(46, 6);
+		std::string prefix = buffer.substr(0, 2);
+		std::string filter = buffer.substr(46, 6);
 		boost::algorithm::trim(filter);
 		filterWL_ = findWavelength(prefix, filter);
 
-		// if no problems were found at any point, return true
 		return true;
 	}
 
 	/*
 		Checks whether the plate is missing from the plate archive room
 	*/
-	bool isMissing(const vector<int>& missingList) {
+	bool isMissing(const std::vector<int>& missingList) {
 		for (const int id : missingList) {
 			if (this->id() == id) return true;
 		}
@@ -116,15 +100,16 @@ public:
 	}
 
 	/* 
-		Takes in a 6-char date string, in the format "yymmdd", outputs a Julian date as a double.
-		This assumes that all dates are between 1st Jan 1917 and 31st Dec 2016, which is fine for
-		these plate catalogs since they don't go beyond ~2003
+		Takes in a 6-char date string, in the format "yymmdd", outputs a Julian 
+		date as a double. This assumes that all dates are between 1st Jan 1917 
+		and 31st Dec 2016, which is fine for these plate catalogs since they 
+		don't go beyond ~2003
 
 		From "Practical Astronomy with your Calculator or Spreadsheet"
 	*/
-	static double convertDate(const string& gregorianDate, 
-	                          const string& lst,
-	                          bool isDebug = false) {
+	static double convertDate(const std::string& gregorianDate, 
+	                          const std::string& lst,
+	                          const bool isDebug = false) {
 		int year = stoi(gregorianDate.substr(0, 2));
 		if (year < 100)
 			year += (year < 17) ? 2000 : 1900;
@@ -177,7 +162,7 @@ public:
 	/*
 		Converting a floating poit Julian Date to UT Gregorian date string as "dd/mm/yyyy"
 	*/
-	static string julianToGregorian(double jd) {
+	static std::string julianToGregorian(double jd) {
 		jd += 0.5;
 		int I = int(jd);
 		double F = jd - I;
@@ -195,12 +180,12 @@ public:
 		int m = (G < 13.5) ? G-1 : G-13;
 		int y = (m > 2.5) ? D-4716 : D-4715;
 		
-		string output;
+		std::string output;
 		if (d < 10) output += '0';
-		output += to_string(d) + '/';
+		output += std::to_string(d) + '/';
 		if (m < 10) output += '0';
-		output += to_string(m) + '/';
-		output += to_string(y);
+		output += std::to_string(m) + '/';
+		output += std::to_string(y);
 		return output;
 	}
 
@@ -240,7 +225,7 @@ public:
 	/*
 		Extracts the UT time for a given julian date, as a string in the format "hh:mm:ss.s"
 	*/
-	static string julianToUT(const double JD) {
+	static std::string julianToUT(const double JD) {
 		double zeroHour = floor(JD - 0.5) + 0.5;
 		double remainder = (JD - zeroHour) * 24;
 
@@ -248,7 +233,7 @@ public:
 		remainder = (remainder - h) * 60.0;
 		int m    = int(remainder);
 		double s = (remainder - m) * 60.0;
-		stringstream ss;
+		std::stringstream ss;
 		if (h < 10) ss << '0';
 		ss << h << ':';
 		if (m < 10) ss << '0';
@@ -264,12 +249,12 @@ public:
 		Takes a Plate array reference and a filename
 		Opens the filename and reads all valid plate records into the array
 	*/
-	static void readPlateCatalog(vector<Plate>& plates, 
-	                             const string& filename) {
-		ifstream platesFile(filename);
+	static void readPlateCatalog(std::vector<Plate>& plates, 
+	                             const std::string& filename) {
+		std::ifstream platesFile(filename);
 		if (platesFile.is_open()) {
 			while (!platesFile.eof()) {
-				string buffer;
+				std::string buffer;
 				getline(platesFile, buffer);
 				if (buffer.length() > 0) {
 					Plate p;
@@ -283,226 +268,6 @@ public:
 			cout << "Plate file \"" << filename << "\" is not valid\n";
 		}
 	}
-
-	/*
-		Goes through all matched plates and prints the relevant info about them all
-		This is a LITTLE BIT OF A MESS but it works
-	*/
-	static void printMatches(const vector<Plate>& p, 
-	                         const vector<Coords>& c, 
-	                         const vector<int>& count, 
-	                         const vector<double>& mag, 
-	                         const vector<double>& countLim, 
-	                         const vector<pair<double,double>>& start, 
-	                         const vector<pair<double,double>>& mid, 
-	                         const vector<pair<double,double>>& end, 
-	                         const vector<string>& uncertainties) {
-
-		vector<pair<double,double>> middle;
-		for (auto m : mid) {
-			double x = Coords::radsToMM(m.first);
-			double y = Coords::radsToMM(m.second);
-			middle.push_back({x, y});
-		}
-		const int SIZE = 48;	// defines width of each printed data box
-		size_t length;
-
-		for (int i = 0; i < int(p.size()); i += 2) {
-			bool canPrint = !(i == p.size() - 1 && p.size() % 2 == 1);
-			stringstream ss;
-			char buffer[50];
-
-			// Match number and Plate ID
-			sprintf(buffer, "%03d\tplate ID       = %d", count[i], p[i].id());
-			ss << buffer;
-			length = SIZE-ss.str().length();
-			ss << string(length+3, ' ') << "| ";
-			if (canPrint) {
-				sprintf(buffer, "%03d\tplate ID       = %d", count[i+1], p[i+1].id());
-				ss << buffer;
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			// UT Date
-			ss << "\tUT date/time   = " << gregorianToString(p[i].gregorian());
-			ss << ", " << julianToUT(p[i].julian());
-			length = SIZE-ss.str().length();
-			ss << string(length, ' ') << "| ";
-			if (canPrint) {
-				ss << "\tUT date        = " << gregorianToString(p[i+1].gregorian());
-				ss << ", " << julianToUT(p[i+1].julian());
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			// Julian Date
-			sprintf(buffer, "\tJulian date    = %.5f", p[i].julian());
-			ss << buffer;
-			length = SIZE-ss.str().length();
-			ss << string(length, ' ') << "| ";
-			if (canPrint) {
-				sprintf(buffer, "\tJulian date    = %.5f", p[i+1].julian());
-				ss << buffer;
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			// Object's RA/DEC coordinates in degrees
-			sprintf(buffer, "\tObject Coords  = (%.5f, %.5f)°", c[i].getDegRA(), c[i].getDegDEC());
-			ss << buffer;
-			length = SIZE-ss.str().length();
-			ss << string(length+1, ' ') << "| ";
-			if (canPrint) {
-				sprintf(buffer, "\tObject Coords  = (%.5f, %.5f)°", c[i+1].getDegRA(), c[i+1].getDegDEC());
-				ss << buffer;
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			// Object's positional coordinates on the plate, in millimetres from the bottom left corner
-			sprintf(buffer, "\tPlate Position = (%.3f, %.3f) mm", middle[i].first, middle[i].second);
-			ss << buffer;
-			length = SIZE-ss.str().length();
-			ss << string(length, ' ') << "| ";
-			if (canPrint) {
-				sprintf(buffer, "\tPlate Position = (%.3f, %.3f) mm", middle[i+1].first, middle[i+1].second);
-				ss << buffer;
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			// x/y positional uncertainties in mm
-			sprintf(buffer, "\tUncertainty    = %s mm", uncertainties[i].c_str());
-			ss << buffer;
-			length = SIZE-ss.str().length();
-			ss << string(length+2, ' ') << "| ";
-			if (canPrint) {
-				sprintf(buffer, "\tUncertainty    = %s mm", uncertainties[i+1].c_str());
-				ss << buffer;
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			// Length of the object's exposure trail on the plate in millimetres, plus the directional vector
-			char buffer2[50];
-			double dx = end[i].first  - start[i].first;
-			double dy = end[i].second - start[i].second;
-			double drift = sqrt(dx*dx + dy*dy);
-			sprintf(buffer, "\tTrail length   = %.2f mm", drift);
-			ss << buffer;
-			sprintf(buffer, "\tTrail vector   = (%.3f, %.3f)", dx, dy);
-			length = SIZE-ss.str().length();
-			ss << string(length, ' ') << "| ";
-			if (canPrint) {
-				dx = end[i+1].first  - start[i+1].first;
-				dy = end[i+1].second - start[i+1].second;
-				drift = sqrt(dx*dx + dy*dy);
-				sprintf(buffer2, "\tTrail length   = %.2f mm", drift);
-				ss << buffer2;
-				sprintf(buffer2, "\tTrail vector   = (%.3f, %.3f)", dx, dy);
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-			ss << buffer;
-			length = SIZE-ss.str().length();
-			ss << string(length, ' ') << "| ";
-			if (canPrint) {
-				ss << buffer2;
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			// Object's apparent magnitude on the plate
-			if ( abs(mag[i]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
-				sprintf(buffer, "\tMagnitude      = UNKNOWN");
-			} else {
-				sprintf(buffer, "\tMagnitude      = %.2f", mag[i]);
-			}
-			ss << buffer;
-			length = SIZE-ss.str().length();
-			ss << string(length, ' ') << "| ";
-			if (canPrint) {
-				if ( abs(mag[i+1]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
-					sprintf(buffer, "\tMagnitude      = UNKNOWN");
-				} else {
-					sprintf(buffer, "\tMagnitude      = %.2f", mag[i+1]);
-				}
-				ss << buffer;
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			// Plate quality grade
-			ss << "\tPlate Grade    = " << p[i].grade();
-			length = SIZE-ss.str().length();
-			ss << string(length, ' ') << "| ";
-			if (canPrint) {
-				ss << "\tPlate Grade    = " << p[i+1].grade();
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			// Plate exposure time in minutes
-			sprintf(buffer, "\tExposure       = %.1f mins", p[i].exposure() / 60.0);
-			ss << buffer;
-			length = SIZE-ss.str().length();
-			ss << string(length, ' ') << "| ";
-			if (canPrint) {
-				sprintf(buffer, "\tExposure       = %.1f mins", p[i+1].exposure() / 60.0);
-				ss << buffer;
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			// Sort-of signal to noise ratio
-			double snr1 = Ephemeris::counts(p[i].exposure(), mag[i]) / p[i].countLimit();
-			double snr2 = Ephemeris::counts(p[i+1].exposure(), mag[i+1]) / p[i+1].countLimit();
-			if ( abs(mag[i]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
-				sprintf(buffer, "\tSNR            = UNKNOWN");
-			} else if (snr1 > 1e5){
-				sprintf(buffer, "\tSNR            = %.2e", snr1);
-			} else {
-				sprintf(buffer, "\tSNR            = %.4f", snr1);
-			}
-			ss << buffer;
-			length = SIZE-ss.str().length();
-			ss << string(length, ' ') << "| ";
-			if (canPrint) {
-				if ( abs(mag[i+1]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
-					sprintf(buffer, "\tSNR            = UNKNOWN");
-				} else if (snr2 > 1e5) {
-					sprintf(buffer, "\tSNR            = %.2e", snr2);
-				} else {
-					sprintf(buffer, "\tSNR            = %.4f", snr2);
-				}
-				ss << buffer;
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			// Plate filter peak wavelength
-			sprintf(buffer, "\tFilter λ peak  = %dÅ", p[i].wavelength());
-			ss << buffer;
-			length = SIZE-ss.str().length();
-			ss << string(length+2, ' ') << "| ";
-			if (canPrint) {
-				sprintf(buffer, "\tFilter λ peak  = %dÅ", p[i].wavelength());
-				ss << buffer;
-			}
-			cout << ss.str() << '\n';
-			ss.str("");
-
-			if (canPrint)
-				cout << string(SIZE*2.4, '-') << '\n';
-			else
-				cout << string(SIZE*1.2, '-') << '\n';
-		}
-		for (int i = 0; PRINT_FOR_SPREADSHEET && i < middle.size(); i++) {
-			double snr = Ephemeris::counts(p[i].exposure(), mag[i]) / p[i].countLimit();
-			printf("%d %.3f %.3f %.3f %.3f\n", p[i].id(), p[i].julian(), snr, middle[i].first, middle[i].second);
-		}
-	}
 	
 	/*
 		Takes the plate prefix/emulsions/filters from the plate record and calculates the 
@@ -510,9 +275,9 @@ public:
 
 		Return values pulled from http://www.roe.ac.uk/ifa/wfau/ukstu/telescope.html#fe
 	*/
-	static double limitingCounts(const string& buffer) {
-		string prefix = buffer.substr(0, 2);
-		string emulsion = buffer.substr(40, 6);
+	static double limitingCounts(const std::string& buffer) {
+		std::string prefix = buffer.substr(0, 2);
+		std::string emulsion = buffer.substr(40, 6);
 		boost::algorithm::trim(prefix);
 		boost::algorithm::trim(emulsion);
 		double magLim, expLim;
@@ -554,17 +319,17 @@ public:
 	/*
 		Converting a gregorian date string from "yymmdd" to "dd/mm/yyyy"
 	*/
-	static string gregorianToString(const string& greg) {
+	static std::string gregorianToString(const std::string& greg) {
 		int year  = stoi(greg.substr(0,2));
 		int month = stoi(greg.substr(2,2));
 		int day   = stoi(greg.substr(4,2));
 		year += (year < 17) ? 2000 : 1900;
-		string date = "";
+		std::string date = "";
 		if (day < 10) date += '0';
-		date += to_string(day) + '/';
+		date += std::to_string(day) + '/';
 		if (month < 10) date += '0';
-		date += to_string(month) + '/';
-		date += to_string(year);
+		date += std::to_string(month) + '/';
+		date += std::to_string(year);
 		return date;
 	}
 
@@ -574,10 +339,10 @@ public:
 		Returns the values as an std::pair<double> object, with xi as first and eta in second
 	*/
 	static void exposureBoundaries(const Plate& p, 
-	                               const pair<Coords,Coords>& coords, 
-	                               const pair<double,double>& times, 
-	                               pair<double, double>& start, 
-	                               pair<double, double>& end) {
+	                               const std::pair<Coords,Coords>& coords, 
+	                               const std::pair<double,double>& times, 
+	                               std::pair<double, double>& start, 
+	                               std::pair<double, double>& end) {
 		double expTime   = p.exposure() / 86400.0;	// in days
 		double startTime = p.julian() - (expTime/2.0);
 		double endTime   = p.julian() + (expTime/2.0);
@@ -603,8 +368,8 @@ public:
 		This is either due to the plate being known as broken/missing, or the signal-to-noise
 		ratio of the plate is too low to spot the asteroid
 	*/
-	static void printMissingAndFaint(const vector<unsigned>& missingPlate, 
-	                                 const vector<unsigned>& tooFaint, 
+	static void printMissingAndFaint(const std::vector<unsigned>& missingPlate, 
+	                                 const std::vector<unsigned>& tooFaint, 
 	                                 const int matchCount, 
 	                                 const double closest, 
 	                                 const bool filterSNR) {
@@ -617,7 +382,7 @@ public:
 				printf("%5d ", missingPlate[j]);
 				if ((j+1) % 5 == 0 && (j+1) < missingPlateCount) cout << "\n\t";
 			}
-			cout << endl;
+			cout << '\n';
 		}
 		if (tooFaintCount > 0) {
 			cout << tooFaintCount << (matchCount>0||tooFaintCount>0?" other":"") << " plate" << (tooFaintCount==1?"":"s");
@@ -642,10 +407,10 @@ public:
 	static void printSummary(const double firstEphDate, 
 	                         const double lastEphDate, 
 	                         const int matchCount, 
-	                         const string& objectName) {
-		string firstDate = Plate::julianToGregorian(firstEphDate);
-		string lastDate  = Plate::julianToGregorian(lastEphDate);
-		string s = objectName;
+	                         const std::string& objectName) {
+		std::string firstDate = Plate::julianToGregorian(firstEphDate);
+		std::string lastDate  = Plate::julianToGregorian(lastEphDate);
+		std::string s = objectName;
 		for (int i = 0; i < s.length(); i++) s[i] = toupper(objectName[i]);
 		if (matchCount > 0) {
 			cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << s;
@@ -665,11 +430,11 @@ public:
 			and 
 		http://www.roe.ac.uk/ifa/wfau/ukstu/pltcat.html#prefix
 	*/
-	static int findWavelength(const string& prefix, 
-	                          const string& filter) {
+	static int findWavelength(const std::string& prefix, 
+	                          const std::string& filter) {
 
 		// special filters
-		string filterPrefix = filter.substr(0, 3);
+		std::string filterPrefix = filter.substr(0, 3);
 		if (filterPrefix == "AAO") {
 			if (filter == "AAO372") return 3727;
 			if (filter == "AAO460") return 4600;

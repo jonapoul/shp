@@ -12,7 +12,7 @@ private:
 	double radRA_;
 	double radDEC_;
 	double degRA_;
-	double degDEC_;
+	double degDEC_; 
 
 public:
 	Coords(const double degRA = 0.0, 
@@ -22,17 +22,39 @@ public:
 		radDEC_ = degDEC * DEG_TO_RAD; 
 	}
 	Coords(const Coords& c)
-			: radRA_(c.radRA_), radDEC_(c.radDEC_), degRA_(c.degRA_), degDEC_(c.degDEC_) { 
+			: radRA_(c.radRA_), radDEC_(c.radDEC_), 
+				degRA_(c.degRA_), degDEC_(c.degDEC_) { 
 	}
 
-	inline double getDegRA()  const { return degRA_; }
-	inline double getDegDEC() const { return degDEC_; }
-	inline double getRadRA()  const { return radRA_; }
-	inline double getRadDEC() const { return radDEC_; }
-	inline void setDegRA(const double r)  { degRA_ = r;  radRA_  = r * DEG_TO_RAD; }
-	inline void setDegDEC(const double d) { degDEC_ = d; radDEC_ = d * DEG_TO_RAD; }
-	inline void setRadRA(const double r)  { radRA_ = r;  degRA_  = r * RAD_TO_DEG; }
-	inline void setRadDEC(const double d) { radDEC_ = d; degDEC_ = d * RAD_TO_DEG; }
+	inline double ra(const AngleType& specifier) const { 
+		return (specifier == DEG) ? degRA_ : radRA_;
+	}
+
+	inline double dec(const AngleType& specifier) const {
+		return (specifier == DEG) ? degDEC_ : radDEC_;
+	}
+
+	inline void set_ra(const double ra, 
+	                   const AngleType& specifier) {
+		if (specifier == DEG) {
+			degRA_ = ra;
+			radRA_ = ra * DEG_TO_RAD;
+		} else {
+			radRA_ = ra;
+			degRA_ = ra * RAD_TO_DEG;
+		}
+	}
+
+	inline void set_dec(const double dec,
+	                    const AngleType& specifier) {
+		if (specifier == DEG) {
+			degDEC_ = dec;
+			radDEC_ = dec * DEG_TO_RAD;
+		} else {
+			radDEC_ = dec;
+			degDEC_ = dec * RAD_TO_DEG;
+		}
+	}
 
 	/*
 		Takes a plate catalog record string and pulls the RA/DEC coordinates from it
@@ -196,8 +218,8 @@ public:
 		double atan 	= atan2(xi, denom) + ra0;
 		while (atan > 2.0*M_PI) atan -= 2.0*M_PI;
 		while (atan < 0.0)	  	atan += 2.0*M_PI;
-		c.setRadRA(atan);
-		c.setRadDEC( atan2(sin_dec0 + eta*cos_dec0, sqrt(xi*xi + denom*denom)) );
+		c.set_ra(atan, RAD);
+		c.set_dec(atan2(sin_dec0 + eta*cos_dec0, sqrt(xi*xi + denom*denom)), RAD);
 	}
 
 	/*
@@ -224,8 +246,8 @@ public:
 		double ra = atan2(y, x);
 		while (ra < 0.0) 		ra += 2.0*M_PI;
 		while (ra > 2.0*M_PI) 	ra -= 2.0*M_PI;
-		c.setRadRA(ra);
-		c.setRadDEC( M_PI/2.0 - atan2(sqrt(x*x + y*y), z) );
+		c.set_ra(ra, RAD);
+		c.set_dec(M_PI/2.0 - atan2(sqrt(x*x + y*y), z), RAD);
 	}
 
 	/*

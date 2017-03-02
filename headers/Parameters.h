@@ -28,5 +28,7 @@
 // if the above is true, prints this plate's date conversion process
 #define PLATE_TO_PRINT 14591
 
+enum AngleType { DEG, RAD };
+
 
 #endif
