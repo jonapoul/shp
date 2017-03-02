@@ -5,72 +5,72 @@
 #include <string>
 #include <math.h>
 #include "Parameters.h"
-using namespace std;
+using std::cout;
 
 class Coords {
 private:
-	double m_radRA;
-	double m_radDEC;
-	double m_degRA;
-	double m_degDEC;
+	double radRA_;
+	double radDEC_;
+	double degRA_;
+	double degDEC_;
 
 public:
 	Coords(const double degRA = 0.0, 
 	       const double degDEC = 0.0)
-			: m_degRA(degRA), m_degDEC(degDEC) { 
-		m_radRA  = degRA  * DEG_TO_RAD; 
-		m_radDEC = degDEC * DEG_TO_RAD; 
+			: degRA_(degRA), degDEC_(degDEC) { 
+		radRA_  = degRA  * DEG_TO_RAD; 
+		radDEC_ = degDEC * DEG_TO_RAD; 
 	}
 	Coords(const Coords& c)
-			: m_radRA(c.m_radRA), m_radDEC(c.m_radDEC), m_degRA(c.m_degRA), m_degDEC(c.m_degDEC) { 
+			: radRA_(c.radRA_), radDEC_(c.radDEC_), degRA_(c.degRA_), degDEC_(c.degDEC_) { 
 	}
 
-	inline double getDegRA()  const { return m_degRA; }
-	inline double getDegDEC() const { return m_degDEC; }
-	inline double getRadRA()  const { return m_radRA; }
-	inline double getRadDEC() const { return m_radDEC; }
-	inline void setDegRA(const double r)  { m_degRA = r;  m_radRA  = r * DEG_TO_RAD; }
-	inline void setDegDEC(const double d) { m_degDEC = d; m_radDEC = d * DEG_TO_RAD; }
-	inline void setRadRA(const double r)  { m_radRA = r;  m_degRA  = r * RAD_TO_DEG; }
-	inline void setRadDEC(const double d) { m_radDEC = d; m_degDEC = d * RAD_TO_DEG; }
+	inline double getDegRA()  const { return degRA_; }
+	inline double getDegDEC() const { return degDEC_; }
+	inline double getRadRA()  const { return radRA_; }
+	inline double getRadDEC() const { return radDEC_; }
+	inline void setDegRA(const double r)  { degRA_ = r;  radRA_  = r * DEG_TO_RAD; }
+	inline void setDegDEC(const double d) { degDEC_ = d; radDEC_ = d * DEG_TO_RAD; }
+	inline void setRadRA(const double r)  { radRA_ = r;  degRA_  = r * RAD_TO_DEG; }
+	inline void setRadDEC(const double d) { radDEC_ = d; degDEC_ = d * RAD_TO_DEG; }
 
 	/*
 		Takes a plate catalog record string and pulls the RA/DEC coordinates from it
 	*/
-	void parseCoordsFromPlate(const string& record) {
+	void parseCoordsFromPlate(const std::string& record) {
 		double hour = stod(record.substr(20,2));
 		double mins = stod(record.substr(22,2));
 		double secs = stod(record.substr(24,1)) * 6.0;
-		m_degRA = hour*15.0 + mins/4.0 + secs/240.0;
-		m_radRA = m_degRA * DEG_TO_RAD;
+		degRA_ = hour*15.0 + mins/4.0 + secs/240.0;
+		radRA_ = degRA_ * DEG_TO_RAD;
 
 		double degrees = stod(record.substr(26,2));
 		double arcmins = stod(record.substr(28,2));
 		double arcsecs = 0.0;
 		bool isPositive = (record[25] != '-');
-		m_degDEC = degrees + arcmins/60.0 + arcsecs/3600.0;
-		m_degDEC *= (isPositive ? 1.0 : -1.0);
-		m_radDEC = m_degDEC * DEG_TO_RAD;
+		degDEC_ = degrees + arcmins/60.0 + arcsecs/3600.0;
+		degDEC_ *= (isPositive ? 1.0 : -1.0);
+		radDEC_ = degDEC_ * DEG_TO_RAD;
 	}
 
 	/*
 		Converts a RA coordinate to sexagesimal format:
 			" XXhXXmXXs "
 	*/
-	string RAtoString() const {
-		string output = "";
-		double decimal = m_degRA / 15.0;
+	std::string RAtoString() const {
+		std::string output = "";
+		double decimal = degRA_ / 15.0;
 		int h = int(decimal);
 		if (h < 10) output += '0';
-		output += to_string(h) + 'h';
+		output += std::to_string(h) + 'h';
 		decimal = (decimal - h) * 60.0;
 		int m = int(decimal);
 		if (m < 10) output += '0';
-		output += to_string(m) + 'm';
+		output += std::to_string(m) + 'm';
 		decimal -= m;
 		int s = round(decimal * 60.0);
 		if (s < 10) output += '0';
-		output += to_string(s) + 's';
+		output += std::to_string(s) + 's';
 		return output;
 	}
 
@@ -78,34 +78,32 @@ public:
 		Converts a DEC coordinate to sexagesimal format:
 			" XX^XX'XX" "
 	*/
-	string DECtoString() const {
-		string output = "";
-		double decimal = m_degDEC;
+	std::string DECtoString() const {
+		std::string output = "";
+		double decimal = degDEC_;
 		if (decimal < 0) {
 			output += '-';
 			decimal *= -1;
 		} else output += '+';
 		int d = int(decimal);
 		if (d < 10) output += '0';
-		output += to_string(d) + '\370';
+		output += std::to_string(d) + '\370';
 		decimal = (decimal - d) * 60.0;
 		int m = int(decimal);
 		if (m < 10) output += '0';
-		output += to_string(m) + '\'';
+		output += std::to_string(m) + '\'';
 		decimal -= m;
 		int s = int(decimal * 60.0);
 		if (s < 10) output += '0';
-		output += to_string(s) + '\"';
+		output += std::to_string(s) + '\"';
 		return output;
 	}
 
 	/*
 		Returns the ra/dec of the coordinates as a string (in decimal degrees)
 	*/
-	string toString() const {
-		string output = to_string(m_degRA);
-		output += ", " + to_string(m_degDEC);
-		return output;
+	std::string toString() const {
+		return std::to_string(degRA_) + ", " + std::to_string(degDEC_);
 	}
 
 	/*
@@ -113,7 +111,7 @@ public:
 	*/
 	static double cosAngularDistance(const Coords& a, 
 	                                 const Coords& b) {
-		return sin(a.m_radDEC)*sin(b.m_radDEC) + cos(a.m_radDEC)*cos(b.m_radDEC)*cos(a.m_radRA - b.m_radRA);
+		return sin(a.radDEC_)*sin(b.radDEC_) + cos(a.radDEC_)*cos(b.radDEC_)*cos(a.radRA_ - b.radRA_);
 	}
 
 	/*
@@ -143,39 +141,39 @@ public:
 	                     double& xi, 
 	                     double& eta, 
 	                     int& status) {
-		double ra   = c.m_radRA;
-		double dec  = c.m_radDEC;
-		double ra0  = c0.m_radRA;
-		double dec0 = c0.m_radDEC;
+		double ra   = c.radRA_;
+		double dec  = c.radDEC_;
+		double ra0  = c0.radRA_;
+		double dec0 = c0.radDEC_;
 		
 		double sin_dec0 = sin(dec0);
 		double cos_dec0 = cos(dec0);
 		double sin_dec  = sin(dec);
-	    double cos_dec  = cos(dec);
-	    double dRA      = ra - ra0;
-	    double sin_dRA  = sin(dRA);
-	    double cos_dRA  = cos(dRA);
+	  double cos_dec  = cos(dec);
+	  double dRA      = ra - ra0;
+	  double sin_dRA  = sin(dRA);
+		double cos_dRA  = cos(dRA);
 
 		// Cosine of the angular distance between the object and the tangent point
-	    double denom = cosAngularDistance(c, c0);
+	  double denom = cosAngularDistance(c, c0);
 
-	    // Handle vectors too far from axis
-	    double TINY = 1e-6;
-	   	if ( denom > TINY ) { 
-	   		status = 0;
-	    } else if ( denom >= 0.0 ) {
-	      	status = 1;
-	      	denom = TINY;
-	   	} else if ( denom > -TINY ) {
-	      	status = 2;
-	      	denom = -TINY;
-	   	} else {
-	      	status = 3;
-	   	}
+	  // Handle vectors too far from axis
+	  double TINY = 1e-6;
+	  if ( denom > TINY ) { 
+	  	status = 0;
+	  } else if ( denom >= 0.0 ) {
+	    	status = 1;
+	    	denom = TINY;
+	  } else if ( denom > -TINY ) {
+	    	status = 2;
+	    	denom = -TINY;
+	  } else {
+	    	status = 3;
+	  }
 
 		// Compute tangent plane coordinates (even in dubious cases)
-	   	xi  = ( cos_dec*sin_dRA ) / denom;
-	   	eta = ( sin_dec*cos_dec0 - cos_dec*sin_dec0*cos_dRA ) / denom;
+	  xi  = ( cos_dec*sin_dRA ) / denom;
+	  eta = ( sin_dec*cos_dec0 - cos_dec*sin_dec0*cos_dRA ) / denom;
 	}
 
 	/*
@@ -190,8 +188,8 @@ public:
 	                            const double eta, 
 	                            const Coords& c0, 
 	                            Coords& c) {
-		double dec0 	= c0.m_radDEC;
-		double ra0  	= c0.m_radRA;
+		double dec0 	= c0.radDEC_;
+		double ra0  	= c0.radRA_;
 		double sin_dec0 = sin(dec0);
 		double cos_dec0 = cos(dec0);
 		double denom 	= cos_dec0 - eta*sin_dec0;
@@ -209,8 +207,8 @@ public:
 	                        double &x, 
 	                        double &y, 
 	                        double &z) {
-		double ra  = c.m_radRA;
-		double dec = c.m_radDEC;
+		double ra  = c.radRA_;
+		double dec = c.radDEC_;
 		x = cos(dec) * cos(ra);
 		y = cos(dec) * sin(ra);
 		z = sin(dec);
@@ -255,6 +253,24 @@ public:
 		Coords output;
 		toSpherical(x, y, z, output);
 		return output;
+	}
+
+	/*
+		Converts the output of a gnomonic transformation to mm
+			1) convert radians to arcseconds
+			2) convert arcsecs to millimetres, using the given rate of 67.12"/mm
+			3) add a shift of half the plate size
+		This gives the output as relative to the bottom left corner of the plate
+	*/
+	static double radsToMM(const double rads) {
+		return (rads * 3600.0 * 180.0) / (ARCSECS_PER_MM * M_PI) + (PLATE_SIZE / 2.0);
+	}
+
+	/*
+		Inverse of the above
+	*/
+	static double mmToRads(const double mm) {
+		return (mm - (PLATE_SIZE / 2.0)) * (ARCSECS_PER_MM * M_PI) / (3600.0 * 180.0);
 	}
 };
 

@@ -14,36 +14,38 @@ using namespace std;
 
 class Plate {
 private:
-	int m_id;				// plate identification number
-	Coords m_coords;		// combines RA and DEC to one object
-	string m_gregorian;		// UT gregorian date string, formatted as yymmdd
-	double m_julian;		// julian date in the middle of exposure
-	double m_exp;			// exposure time in secs
-	char m_grade;			// graded plate quality, A being best and C being worst
-	double m_countLimit;	// lowest number of photon counts on a plate below which an object isn't visible
-	int m_filterWL;			// peak wavelength in angstroms
+	int id_;					// plate identification number
+	Coords coords_;		// combines RA and DEC to one object
+	string greg_;			// UT gregorian date string, formatted as yymmdd
+	double julian_;		// julian date in the middle of exposure
+	double exp_;			// exposure time in secs
+	char grade_;			// graded plate quality, A being best and C being worst
+	double countLim_;	// lowest number of photon counts on a plate below which an object isn't visible
+	int filterWL_;		// peak wavelength in angstroms
 
 public:
-	Plate(const int num=0, 
-	      const Coords& c={}, 
-	      const string& g="", 
-	      const double j=0.0, 
-	      const double exp=0.0, 
-	      const char grade=' ', 
-	      const double lim=0.0,
-	      const int wl=0)
-		: m_id(num), m_coords(c), m_gregorian(g), m_julian(j), m_exp(exp), m_grade(grade), m_countLimit(lim), m_filterWL(wl) { }
+	Plate(const int num = 0, 
+	      const Coords& c = {}, 
+	      const string& g = "", 
+	      const double j = 0.0, 
+	      const double exp = 0.0, 
+	      const char grade = ' ', 
+	      const double lim = 0.0,
+	      const int wl = 0)
+			: id_(num), coords_(c), greg_(g), julian_(j), 
+				exp_(exp), grade_(grade), countLim_(lim), filterWL_(wl) { }
 	Plate(const Plate& p)
-		: m_id(p.m_id), m_coords(p.m_coords), m_gregorian(p.m_gregorian), m_julian(p.m_julian), m_exp(p.m_exp), m_grade(p.m_grade), m_countLimit(p.m_countLimit), m_filterWL(p.m_filterWL) { }
+			: id_(p.id_), coords_(p.coords_), greg_(p.greg_), julian_(p.julian_), 
+				exp_(p.exp_), grade_(p.grade_), countLim_(p.countLim_), filterWL_(p.filterWL_) { }
 
-	inline int id() const { return m_id; };
-	inline Coords coords() const { return m_coords; };
-	inline string gregorian() const { return m_gregorian; }
-	inline double julian() const { return m_julian; };
-	inline double exposure() const { return m_exp; }
-	inline char grade() const { return m_grade; };
-	inline double countLimit() const { return m_countLimit; }
-	inline int wavelength() const { return m_filterWL; }
+	inline int id() const { return id_; };
+	inline Coords coords() const { return coords_; };
+	inline string gregorian() const { return greg_; }
+	inline double julian() const { return julian_; };
+	inline double exposure() const { return exp_; }
+	inline char grade() const { return grade_; };
+	inline double countLimit() const { return countLim_; }
+	inline int wavelength() const { return filterWL_; }
 
 	/*
 		Reads a line from the plate catalog file and fills in the relevant fields of the Plate object
@@ -60,13 +62,13 @@ public:
 		if (buffer.substr(16,4) == "TEST" || buffer.substr(15,4) == "TEST")
 			return false;
 		// plate number, for later reference
-		try { m_id = stoi(buffer.substr(2, 5)); }
+		try { id_ = stoi(buffer.substr(2, 5)); }
 		catch (...) { return false; }
 		// reading the RA/DEC coordinates in sexagesimal format
-		try { m_coords.parseCoordsFromPlate(buffer); }
+		try { coords_.parseCoordsFromPlate(buffer); }
 		catch (...) { return false; }
 		// julian date calculated from gregorian
-		m_gregorian = buffer.substr(30, 6);
+		greg_ = buffer.substr(30, 6);
 		string lst  = buffer.substr(36, 4);
 		// if any of the digits of the lst are blank spaces/letters, reject it
 		/*if (!isdigit(lst[0]) || 
@@ -78,26 +80,26 @@ public:
 			if (!isdigit(c))
 				c = '0';
 		}
-		bool isDebug = (PRINT_DATE_BREAKDOWN && m_id == PLATE_TO_PRINT) ? true : false;
-		m_julian = convertDate(m_gregorian, lst, isDebug);
+		bool isDebug = (PRINT_DATE_BREAKDOWN && id_ == PLATE_TO_PRINT) ? true : false;
+		julian_ = convertDate(greg_, lst, isDebug);
 
 		// adding half of the exposure time to the julian date
 		// this means that the outputted position is the position of the object halfway through the exposure
 		// the substring is in the format "mmmt" where t = tenth of a minute
-		try { m_exp = stod(buffer.substr(52,4)) * 6.0; }
+		try { exp_ = stod(buffer.substr(52,4)) * 6.0; }
 		catch (...) { return false; }
-		m_julian += (m_exp / 86400.0) / 2.0;
+		julian_ += (exp_ / 86400.0) / 2.0;
 
 		// plate quality grade, from A to C
-		m_grade = buffer[56];
+		grade_ = buffer[56];
 		// calculating the faintest apparent magnitude that would be visible on the plate
-		m_countLimit = limitingCounts(buffer);
+		countLim_ = limitingCounts(buffer);
 		
 		// filter wavelength
 		string prefix = buffer.substr(0, 2);
 		string filter = buffer.substr(46, 6);
 		boost::algorithm::trim(filter);
-		m_filterWL = findWavelength(prefix, filter);
+		filterWL_ = findWavelength(prefix, filter);
 
 		// if no problems were found at any point, return true
 		return true;
@@ -298,8 +300,8 @@ public:
 
 		vector<pair<double,double>> middle;
 		for (auto m : mid) {
-			double x = radsToMM(m.first);
-			double y = radsToMM(m.second);
+			double x = Coords::radsToMM(m.first);
+			double y = Coords::radsToMM(m.second);
 			middle.push_back({x, y});
 		}
 		const int SIZE = 48;	// defines width of each printed data box
@@ -308,18 +310,16 @@ public:
 		for (int i = 0; i < int(p.size()); i += 2) {
 			bool canPrint = !(i == p.size() - 1 && p.size() % 2 == 1);
 			stringstream ss;
+			char buffer[50];
 
 			// Match number and Plate ID
-			char buffer1[50], buffer2[50], buffer3[50], buffer4[50];
-			sprintf(buffer1, "%03d", count[i]);
-			sprintf(buffer2, "\tplate ID       = %d", p[i].id());
-			ss << buffer1 << buffer2;
+			sprintf(buffer, "%03d\tplate ID       = %d", count[i], p[i].id());
+			ss << buffer;
 			length = SIZE-ss.str().length();
 			ss << string(length+3, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer3, "%03d", count[i+1]);
-				sprintf(buffer4, "\tplate ID       = %d", p[i+1].id());
-				ss << buffer3 << buffer4;
+				sprintf(buffer, "%03d\tplate ID       = %d", count[i+1], p[i+1].id());
+				ss << buffer;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -337,103 +337,98 @@ public:
 			ss.str("");
 
 			// Julian Date
-			char buffer5[50], buffer6[50];
-			sprintf(buffer5, "\tJulian date    = %.5f", p[i].julian());
-			ss << buffer5;
+			sprintf(buffer, "\tJulian date    = %.5f", p[i].julian());
+			ss << buffer;
 			length = SIZE-ss.str().length();
 			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer6, "\tJulian date    = %.5f", p[i+1].julian());
-				ss << buffer6;
+				sprintf(buffer, "\tJulian date    = %.5f", p[i+1].julian());
+				ss << buffer;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
 
 			// Object's RA/DEC coordinates in degrees
-			char buffer7[50], buffer8[50];
-			sprintf(buffer7, "\tObject Coords  = (%.5f, %.5f)°", c[i].getDegRA(), c[i].getDegDEC());
-			ss << buffer7;
+			sprintf(buffer, "\tObject Coords  = (%.5f, %.5f)°", c[i].getDegRA(), c[i].getDegDEC());
+			ss << buffer;
 			length = SIZE-ss.str().length();
 			ss << string(length+1, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer8, "\tObject Coords  = (%.5f, %.5f)°", c[i+1].getDegRA(), c[i+1].getDegDEC());
-				ss << buffer8;
+				sprintf(buffer, "\tObject Coords  = (%.5f, %.5f)°", c[i+1].getDegRA(), c[i+1].getDegDEC());
+				ss << buffer;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
 
 			// Object's positional coordinates on the plate, in millimetres from the bottom left corner
-			char buffer9[50], buffer10[50];
-			sprintf(buffer9, "\tPlate Position = (%.3f, %.3f) mm", middle[i].first, middle[i].second);
-			ss << buffer9;
+			sprintf(buffer, "\tPlate Position = (%.3f, %.3f) mm", middle[i].first, middle[i].second);
+			ss << buffer;
 			length = SIZE-ss.str().length();
 			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer10, "\tPlate Position = (%.3f, %.3f) mm", middle[i+1].first, middle[i+1].second);
-				ss << buffer10;
+				sprintf(buffer, "\tPlate Position = (%.3f, %.3f) mm", middle[i+1].first, middle[i+1].second);
+				ss << buffer;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
 
 			// x/y positional uncertainties in mm
-			char buffer23[50], buffer24[50];
-			sprintf(buffer23, "\tUncertainty    = %s mm", uncertainties[i].c_str());
-			ss << buffer23;
+			sprintf(buffer, "\tUncertainty    = %s mm", uncertainties[i].c_str());
+			ss << buffer;
 			length = SIZE-ss.str().length();
 			ss << string(length+2, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer24, "\tUncertainty    = %s mm", uncertainties[i+1].c_str());
-				ss << buffer24;
+				sprintf(buffer, "\tUncertainty    = %s mm", uncertainties[i+1].c_str());
+				ss << buffer;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
 
 			// Length of the object's exposure trail on the plate in millimetres, plus the directional vector
-			char buffer11[50], buffer12[50], buffer13[50], buffer14[50];
+			char buffer2[50];
 			double dx = end[i].first  - start[i].first;
 			double dy = end[i].second - start[i].second;
 			double drift = sqrt(dx*dx + dy*dy);
-			sprintf(buffer11, "\tTrail length   = %.2f mm", drift);
-			sprintf(buffer13, "\tTrail vector   = (%.3f, %.3f)", dx, dy);
-			ss << buffer11;
+			sprintf(buffer, "\tTrail length   = %.2f mm", drift);
+			ss << buffer;
+			sprintf(buffer, "\tTrail vector   = (%.3f, %.3f)", dx, dy);
 			length = SIZE-ss.str().length();
 			ss << string(length, ' ') << "| ";
 			if (canPrint) {
 				dx = end[i+1].first  - start[i+1].first;
 				dy = end[i+1].second - start[i+1].second;
 				drift = sqrt(dx*dx + dy*dy);
-				sprintf(buffer12, "\tTrail length   = %.2f mm", drift);
-				sprintf(buffer14, "\tTrail vector   = (%.3f, %.3f)", dx, dy);
-				ss << buffer12;
+				sprintf(buffer2, "\tTrail length   = %.2f mm", drift);
+				ss << buffer2;
+				sprintf(buffer2, "\tTrail vector   = (%.3f, %.3f)", dx, dy);
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
-			ss << buffer13;
+			ss << buffer;
 			length = SIZE-ss.str().length();
 			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				ss << buffer14;
+				ss << buffer2;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
 
 			// Object's apparent magnitude on the plate
-			char buffer15[50], buffer16[50];
 			if ( abs(mag[i]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
-				sprintf(buffer15, "\tMagnitude      = UNKNOWN");
+				sprintf(buffer, "\tMagnitude      = UNKNOWN");
 			} else {
-				sprintf(buffer15, "\tMagnitude      = %.2f", mag[i]);
+				sprintf(buffer, "\tMagnitude      = %.2f", mag[i]);
 			}
-			ss << buffer15;
+			ss << buffer;
 			length = SIZE-ss.str().length();
 			ss << string(length, ' ') << "| ";
 			if (canPrint) {
 				if ( abs(mag[i+1]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
-					sprintf(buffer16, "\tMagnitude      = UNKNOWN");
+					sprintf(buffer, "\tMagnitude      = UNKNOWN");
 				} else {
-					sprintf(buffer16, "\tMagnitude      = %.2f", mag[i+1]);
+					sprintf(buffer, "\tMagnitude      = %.2f", mag[i+1]);
 				}
-				ss << buffer16;
+				ss << buffer;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -449,54 +444,51 @@ public:
 			ss.str("");
 
 			// Plate exposure time in minutes
-			char buffer17[50], buffer18[50];
-			sprintf(buffer17, "\tExposure       = %.1f mins", p[i].exposure() / 60.0);
-			ss << buffer17;
+			sprintf(buffer, "\tExposure       = %.1f mins", p[i].exposure() / 60.0);
+			ss << buffer;
 			length = SIZE-ss.str().length();
 			ss << string(length, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer18, "\tExposure       = %.1f mins", p[i+1].exposure() / 60.0);
-				ss << buffer18;
+				sprintf(buffer, "\tExposure       = %.1f mins", p[i+1].exposure() / 60.0);
+				ss << buffer;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
 
 			// Sort-of signal to noise ratio
-			char buffer19[50], buffer20[50];
 			double snr1 = Ephemeris::counts(p[i].exposure(), mag[i]) / p[i].countLimit();
 			double snr2 = Ephemeris::counts(p[i+1].exposure(), mag[i+1]) / p[i+1].countLimit();
 			if ( abs(mag[i]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
-				sprintf(buffer19, "\tSNR            = UNKNOWN");
+				sprintf(buffer, "\tSNR            = UNKNOWN");
 			} else if (snr1 > 1e5){
-				sprintf(buffer19, "\tSNR            = %.2e", snr1);
+				sprintf(buffer, "\tSNR            = %.2e", snr1);
 			} else {
-				sprintf(buffer19, "\tSNR            = %.4f", snr1);
+				sprintf(buffer, "\tSNR            = %.4f", snr1);
 			}
-			ss << buffer19;
+			ss << buffer;
 			length = SIZE-ss.str().length();
 			ss << string(length, ' ') << "| ";
 			if (canPrint) {
 				if ( abs(mag[i+1]-UNKNOWN_MAGNITUDE) < 1e-6 ) {
-					sprintf(buffer20, "\tSNR            = UNKNOWN");
+					sprintf(buffer, "\tSNR            = UNKNOWN");
 				} else if (snr2 > 1e5) {
-					sprintf(buffer20, "\tSNR            = %.2e", snr2);
+					sprintf(buffer, "\tSNR            = %.2e", snr2);
 				} else {
-					sprintf(buffer20, "\tSNR            = %.4f", snr2);
+					sprintf(buffer, "\tSNR            = %.4f", snr2);
 				}
-				ss << buffer20;
+				ss << buffer;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
 
 			// Plate filter peak wavelength
-			char buffer21[50], buffer22[50];
-			sprintf(buffer21, "\tFilter λ peak  = %dÅ", p[i].wavelength());
-			ss << buffer21;
+			sprintf(buffer, "\tFilter λ peak  = %dÅ", p[i].wavelength());
+			ss << buffer;
 			length = SIZE-ss.str().length();
 			ss << string(length+2, ' ') << "| ";
 			if (canPrint) {
-				sprintf(buffer22, "\tFilter λ peak  = %dÅ", p[i].wavelength());
-				ss << buffer22;
+				sprintf(buffer, "\tFilter λ peak  = %dÅ", p[i].wavelength());
+				ss << buffer;
 			}
 			cout << ss.str() << '\n';
 			ss.str("");
@@ -594,34 +586,16 @@ public:
 
 		double xiStart, xiEnd, etaStart, etaEnd;
 		int status1, status2;
-		Coords::gnomonic(startCoords, p.m_coords, xiStart, etaStart, status1);
-		Coords::gnomonic(endCoords,   p.m_coords, xiEnd,   etaEnd,   status2);
+		Coords::gnomonic(startCoords, p.coords_, xiStart, etaStart, status1);
+		Coords::gnomonic(endCoords,   p.coords_, xiEnd,   etaEnd,   status2);
 		if (status1 != 0 || status2 != 0) printf("Plate %d failed at exposureBoundaries()!\n", p.id());
 
-		double x1 = radsToMM(xiStart);
-		double y1 = radsToMM(etaStart);
-		double x2 = radsToMM(xiEnd);
-		double y2 = radsToMM(etaEnd);
+		double x1 = Coords::radsToMM(xiStart);
+		double y1 = Coords::radsToMM(etaStart);
+		double x2 = Coords::radsToMM(xiEnd);
+		double y2 = Coords::radsToMM(etaEnd);
 		start = {x1, y1};
 		end   = {x2, y2};
-	}
-
-	/*
-		Converts the output of a gnomonic transformation to mm
-			1) convert radians to arcseconds
-			2) convert arcsecs to millimetres, using the given rate of 67.12"/mm
-			3) add a shift of half the plate size
-		This gives the output as relative to the bottom left corner of the plate
-	*/
-	static double radsToMM(const double rads) {
-		return (rads * 3600.0 * 180.0) / (ARCSECS_PER_MM * M_PI) + (PLATE_SIZE / 2.0);
-	}
-
-	/*
-		Inverse of the above
-	*/
-	static double mmToRads(const double mm) {
-		return (mm - (PLATE_SIZE / 2.0)) * (ARCSECS_PER_MM * M_PI) / (3600.0 * 180.0);
 	}
 
 	/*
