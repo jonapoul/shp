@@ -2,9 +2,11 @@
 #define COORDS_H
 #include <iostream>
 #include <vector>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #include <math.h>
-#include "Parameters.h"
+#include "Definitions.h"
 using std::cout;
 
 class Coords {
@@ -25,17 +27,36 @@ public:
 			: radRA_(c.radRA_), radDEC_(c.radDEC_), 
 				degRA_(c.degRA_), degDEC_(c.degDEC_) { 
 	}
+	/*
+		Assumes RA is in format XXhXXmXX.XXXs and DEC in format +XX:XX:XX.XX
+	*/
+	Coords(const std::string& ra,
+	       const std::string& dec) {
+		int hrs = stoi(ra.substr(0,2));
+		int min = stoi(ra.substr(3,2));
+		double sec = stod(ra.substr(6,6));
+		degRA_ = hrs*15.0 + min/4.0 + sec/240.0;
+		radRA_ = degRA_ * DEG_TO_RAD;
 
-	inline double ra(const AngleType& specifier) const { 
+		bool isPositive = (dec[0] == '+');
+		int degrees = stoi(dec.substr(1,2));
+		int arcmins = stoi(dec.substr(4,2));
+		double arcsecs = stod(dec.substr(7,5));
+		degDEC_ = degrees + arcmins/60.0 + arcsecs/3600.0;
+		degDEC_ *= (isPositive ? 1.0 : -1.0);
+		radDEC_ = degDEC_ * DEG_TO_RAD;
+	}
+
+	inline double ra(const AngleUnit& specifier) const { 
 		return (specifier == DEG) ? degRA_ : radRA_;
 	}
 
-	inline double dec(const AngleType& specifier) const {
+	inline double dec(const AngleUnit& specifier) const {
 		return (specifier == DEG) ? degDEC_ : radDEC_;
 	}
 
 	inline void set_ra(const double ra, 
-	                   const AngleType& specifier) {
+	                   const AngleUnit& specifier) {
 		if (specifier == DEG) {
 			degRA_ = ra;
 			radRA_ = ra * DEG_TO_RAD;
@@ -46,7 +67,7 @@ public:
 	}
 
 	inline void set_dec(const double dec,
-	                    const AngleType& specifier) {
+	                    const AngleUnit& specifier) {
 		if (specifier == DEG) {
 			degDEC_ = dec;
 			radDEC_ = dec * DEG_TO_RAD;
@@ -77,23 +98,23 @@ public:
 
 	/*
 		Converts a RA coordinate to sexagesimal format:
-			" XXhXXmXXs "
+			"XXhXXmXXs"
 	*/
 	std::string RAtoString() const {
-		std::string output = "";
+		std::stringstream output;
 		double decimal = degRA_ / 15.0;
 		int h = int(decimal);
-		if (h < 10) output += '0';
-		output += std::to_string(h) + 'h';
+		if (h < 10) output << '0';
+		output << h << 'h';
 		decimal = (decimal - h) * 60.0;
 		int m = int(decimal);
-		if (m < 10) output += '0';
-		output += std::to_string(m) + 'm';
+		if (m < 10) output << '0';
+		output << m << 'm';
 		decimal -= m;
-		int s = round(decimal * 60.0);
-		if (s < 10) output += '0';
-		output += std::to_string(s) + 's';
-		return output;
+		double s = decimal * 60.0;
+		if (s < 10) output << '0';
+		output << std::fixed << std::setprecision(3) << s << 's';
+		return output.str();
 	}
 
 	/*
@@ -101,31 +122,34 @@ public:
 			" XX^XX'XX" "
 	*/
 	std::string DECtoString() const {
-		std::string output = "";
+		std::stringstream output;
 		double decimal = degDEC_;
 		if (decimal < 0) {
-			output += '-';
+			output << '-';
 			decimal *= -1;
-		} else output += '+';
+		} else output << '+';
 		int d = int(decimal);
-		if (d < 10) output += '0';
-		output += std::to_string(d) + '\370';
+		if (d < 10) output << '0';
+		output << d << '\370';
 		decimal = (decimal - d) * 60.0;
 		int m = int(decimal);
-		if (m < 10) output += '0';
-		output += std::to_string(m) + '\'';
+		if (m < 10) output << '0';
+		output << m << '\'';
 		decimal -= m;
-		int s = int(decimal * 60.0);
-		if (s < 10) output += '0';
-		output += std::to_string(s) + '\"';
-		return output;
+		double s = decimal * 60.0;
+		if (s < 10) output << '0';
+		output << std::fixed << std::setprecision(3) << s << '\"';
+		return output.str();
 	}
 
 	/*
 		Returns the ra/dec of the coordinates as a string (in decimal degrees)
 	*/
-	std::string toString() const {
-		return std::to_string(degRA_) + ", " + std::to_string(degDEC_);
+	std::string toString(const bool isSexagesimal = false) const {
+		if (isSexagesimal) 
+			return RAtoString() + ", " + DECtoString();
+		else
+			return std::to_string(degRA_) + ", " + std::to_string(degDEC_);
 	}
 
 	/*

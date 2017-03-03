@@ -8,6 +8,7 @@
 #include <sstream>
 #include "Plate.h"
 #include "Coords.h"
+#include "Definitions.h"
 using std::cout;
 class Plate;
 class Coords;
@@ -262,6 +263,68 @@ public:
     for (int i = 0; PRINT_FOR_SPREADSHEET && i < m.size(); i++) {
       double snr = Ephemeris::counts(m[i].p().exposure(), m[i].mag()) / m[i].p().countLimit();
       printf("%d %.3f %.3f %.3f %.3f\n", m[i].p().id(), m[i].p().julian(), snr, m[i].mid().first, m[i].mid().second);
+    }
+  }
+
+  /*
+    Prints a summary of which plates were matched, but are known to be unviewable
+    This is either due to the plate being known as broken/missing, or the signal-to-noise
+    ratio of the plate is too low to spot the asteroid
+  */
+  static void printMissingAndFaint(const std::vector<unsigned>& missingPlate, 
+                                   const std::vector<unsigned>& tooFaint, 
+                                   const int matchCount, 
+                                   const double closest, 
+                                   const bool filterSNR) {
+    int missingPlateCount = missingPlate.size(); 
+    int tooFaintCount     = tooFaint.size();
+    if (missingPlateCount > 0) {
+      cout << missingPlateCount << (matchCount>0?" other":"") << " plate" << (missingPlateCount==1?"":"s");
+      cout << " matched, but " << (missingPlateCount==1 ? "isn't" : "aren't") << " in the plate room:\n\t";
+      for (int j = 0; j < missingPlateCount; j++) {
+        printf("%5d ", missingPlate[j]);
+        if ((j+1) % 5 == 0 && (j+1) < missingPlateCount) cout << "\n\t";
+      }
+      cout << '\n';
+    }
+    if (tooFaintCount > 0) {
+      cout << tooFaintCount << (matchCount>0||tooFaintCount>0?" other":"") << " plate" << (tooFaintCount==1?"":"s");
+      cout << " matched, but " << (tooFaintCount==1 ? "has" : "have");
+      cout << " a Signal-to-Noise Ratio below " << SNR_LIMIT << ":\n\t";
+      for (int j = 0; j < tooFaintCount; j++) {
+        printf("%5d ", tooFaint[j]);
+        if ((j+1) % 7 == 0 && (j+1) < tooFaintCount) cout << "\n\t";
+      }
+      if (filterSNR) {
+        cout << "\nAdd a -snr flag to the command to ignore SNR filtering\n";
+      }
+    } 
+    if (!filterSNR) {
+      cout << "SNR filtering has been ignored\n";
+    }
+    if (matchCount == 0 && tooFaintCount == 0 && missingPlateCount == 0) {
+      cout << "Closest angular distance to a plate centre was " << closest << "°\n";
+    }
+  }
+
+  /*
+    Prints an overall summary of what has just been found
+  */
+  static void printSummary(const double firstEphDate, 
+                           const double lastEphDate, 
+                           const int matchCount, 
+                           const std::string& objectName) {
+    std::string firstDate = Plate::julianToGregorian(firstEphDate);
+    std::string lastDate  = Plate::julianToGregorian(lastEphDate);
+    std::string s = objectName;
+    for (int i = 0; i < s.length(); i++) s[i] = toupper(objectName[i]);
+    if (matchCount > 0) {
+      cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << s;
+      cout << " between " << firstDate << " and " << lastDate << '\n';
+      cout << "The shown dates/times represent the middle of the exposure, not the start\n";
+      cout << "Uncertainties represent an ellipse up to 3 sigma, i.e. 99.7% certainty\n";
+    } else {
+      cout << "No matches found for " << s << "!\n";
     }
   }
 };

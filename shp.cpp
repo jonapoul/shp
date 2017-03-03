@@ -6,12 +6,12 @@
 #include <utility>
 #include "headers/Ephemeris.h"
 #include "headers/Plate.h"
-#include "headers/Parameters.h"
 #include "headers/Match.h"
+#include "headers/Definitions.h"
 namespace chr = std::chrono;
 
 int main(int argc, char* argv[]) {	
-	// determining the program parameters from command line arguments
+	// determining the asteroid name from command line arguments
 	std::string objectName;
 	bool filterSNR = true;
 	Ephemeris::determineParameters(argc, argv, objectName, filterSNR);
@@ -108,22 +108,21 @@ int main(int argc, char* argv[]) {
 					double mag = Ephemeris::linInterp(eph[i].mag(), beforeDate, 
 					                                  eph[i+1].mag(), afterDate, plateDate);
 					double counts = Ephemeris::counts(p.exposure(), mag);
-					double countLimit = p.countLimit();
-					double snr = counts / countLimit;
+					double snr = counts / p.countLimit();
 					// this is a totally empirical limit, can be changed if necessary
 					if (filterSNR && snr < SNR_LIMIT) {
 						tooFaint.push_back(p.id());
 						continue;
 					}
-					// xi/eta coords of the points at the start, middle and end of the exposure
-					std::pair<double,double> start, mid, end;
-					mid.first  = Coords::radsToMM(xi);
-					mid.second = Coords::radsToMM(eta);
+					std::pair<double,double> start, end;
+					std::pair<double,double> mid(Coords::radsToMM(xi), Coords::radsToMM(eta));
 					std::pair<Coords,Coords> boundCoords(before,after);
 					std::pair<double,double> boundDates(beforeDate, afterDate);
+					// getting the start, mid and end plate positions of the asteroid
 					Plate::exposureBoundaries(p, boundCoords, boundDates, start, end);
 					std::string uncer = Ephemeris::uncertainties(eph[i], eph[i+1], plateDate);
 					Match m(matchCount++, p, interpedCoords, mag, start, mid, end, uncer);
+					// adding this match to the array, to be printed at the end
 					matches.push_back(m);
 				}
 			}
@@ -133,14 +132,11 @@ int main(int argc, char* argv[]) {
 	// printing a summary of how many plates matched, and how many were
 	// too faint/missing
 	Match::printMatches(matches);
-	Plate::printSummary(firstEphDate, lastEphDate, matchCount, objectName);
-	Plate::printMissingAndFaint(missingPlate, tooFaint, matchCount, closest, filterSNR);
+	Match::printSummary(firstEphDate, lastEphDate, matchCount, objectName);
+	Match::printMissingAndFaint(missingPlate, tooFaint, matchCount, closest, filterSNR);
 	// printing the total time taken when running the program
 	chr::duration<double> elapsed_seconds = chr::system_clock::now() - start;
 	printf("Elapsed time: %.4fs\n", elapsed_seconds.count());
 }
 
-
-// TO DO
-	// carry on fixing printMatches
-	// add option to go through every faint/distant file to check if matchCount > 0, then print filenames
+// apophis throwing an error when using -snr????

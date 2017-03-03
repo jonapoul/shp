@@ -10,7 +10,7 @@
 #include <experimental/filesystem>
 #include <boost/algorithm/string.hpp>
 #include "Coords.h"
-#include "Parameters.h"
+#include "Definitions.h"
 
 namespace fs = std::experimental::filesystem;
 using std::cout;
