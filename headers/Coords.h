@@ -6,8 +6,11 @@
 #include <sstream>
 #include <string>
 #include <math.h>
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/io.hpp>
 #include "Definitions.h"
 using std::cout;
+namespace ublas = boost::numeric::ublas;
 
 class Coords {
 private:
@@ -317,6 +320,67 @@ public:
 	*/
 	static double mmToRads(const double mm) {
 		return (mm - (PLATE_SIZE / 2.0)) * (ARCSECS_PER_MM * M_PI) / (3600.0 * 180.0);
+	}
+
+	/*
+	  Converts between two RA/DEC systems based on time epochs
+	    year1 = basis of coordinates c1
+	    year2 = year of output coordinates 
+
+		HIGH PRECISION VERSION
+	  From Duffett-Smith p73-75
+	*/
+	static Coords convertEpoch(const unsigned year1,
+	                           const unsigned year2,
+	                           const Coords& c1) {
+	  // i would use this from Plate.h, but circular includes are a pain in the arse
+	  auto gregorianToJulian = [](double day, int month, int year) -> double {
+	  	if (month < 3) { 
+	  		year--; 
+	  		month += 12; 
+	  	}
+	  	int B;
+	  	if (year > 1582) {
+	  		int A = int(year / 100.0);
+	  		B = 2 - A + int(A/4);
+	  	} else B = 0;
+	  	int C = (year < 0) ? int(365.25 * year - 0.75) : int(365.25 * year);
+	  	int D = int(30.6001 * (month+1));
+	  	return B + C + D + day + 1720994.5;
+	  };
+	  auto createMatrix = [](double T){
+	  	double xi 	 = (0.640616*T + 0.0000839*T*T + 0.0000050*T*T*T) * DEG_TO_RAD;
+	  	double z 		 = (0.640616*T + 0.0003041*T*T + 0.0000051*T*T*T) * DEG_TO_RAD;
+	  	double theta = (0.556753*T - 0.0001185*T*T - 0.0000116*T*T*T) * DEG_TO_RAD;
+	  	double CX = cos(xi), 		SX = sin(xi);
+	  	double CZ = cos(z), 		SZ = sin(z);
+	  	double CT = cos(theta), ST = sin(theta);
+	  	ublas::matrix<double> m(3,3);
+	  	m(0,0) = CX*CT*CZ-SX*SZ; 	m(0,1) = CX*CT*SZ+SX*CZ; 	m(0,2) = CX*ST;
+	  	m(1,0) = -SX*CT*CZ-CX*SZ; m(1,1) = -SX*CT*SZ+CX*CZ; m(1,2) = -SX*ST;
+	  	m(2,0) = -ST*CZ; 					m(2,1) = -ST*SZ; 					m(2,2) = CT;
+	  	return m;
+	  };
+
+	  double JD1 = gregorianToJulian(1, 1, year1);
+	  double JD2 = gregorianToJulian(1, 1, year2);
+	  double T1	= (JD1 - 2451545.0) / 36525.0;
+	  double T2	= (JD2 - 2451545.0) / 36525.0;
+
+	  ublas::matrix<double> P_prime = createMatrix(T1);
+	  ublas::matrix<double> P = ublas::trans(createMatrix(T2));
+	  double ra1 = c1.ra(RAD), dec1 = c1.dec(RAD);
+	  ublas::vector<double> v(3);
+	  v(0) = cos(ra1)*cos(dec1);
+	  v(1) = sin(ra1)*cos(dec1);
+	  v(2) = sin(dec1);
+	  ublas::vector<double> s = prod(P_prime, v);
+	  ublas::vector<double> w = prod(P, s);
+	  double m = w(0), n = w(1), p = w(2);
+
+	  double ra2  = atan2(n, m) * RAD_TO_DEG;
+	  double dec2 = asin(p) * RAD_TO_DEG;
+	  return Coords(ra2, dec2);
 	}
 };
 

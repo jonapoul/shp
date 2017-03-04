@@ -7,8 +7,11 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <boost/algorithm/string.hpp>
+#include <experimental/filesystem>
 #include "Coords.h"
 using std::cout;
+namespace fs = std::experimental::filesystem;
 
 class Star {
 private:
@@ -50,27 +53,73 @@ public:
   inline void setEta(const double eta) { eta_ = eta; }
 
   void printStar() const {
-      printf("%5d %8.2f %8.2f %5d %10.7f %10.7f\n", catid_, x_, y_, scid_, j2000_.ra(DEG), j2000_.dec(DEG));
+      printf("%5d %8.2f %8.2f  %06d  %s  %s\n", catid_, x_, y_, scid_, j2000_.toString(true).c_str(), b1950_.toString(true).c_str());
   }
 
   static void takeInput(const int argc,
                         const char* argv[],
                         std::string& path,
                         unsigned& plateNumber) {
-    std::string filename;
-    if (argc < 3) {
-      cout << "Asteroid name: ";
-      getline(std::cin, filename);
-      cout << "Plate number: ";
-      std::string numStr;
-      getline(std::cin, numStr);
-      /* ADD A FILESYSTEM CHECKER HERE SOMETIME */
-      plateNumber = stoi(numStr);
-    } else {
-      filename = std::string(argv[1]);
-      plateNumber = stoi(std::string(argv[2]));
+    fs::path filePath = "./images";
+    if (argc == 3) { // if all options where given as arguments
+      filePath /= fs::path(argv[1]) / fs::path(argv[2]);
+      if (!fs::exists(filePath)) {
+        cout << filePath.string() << " doesn't exist\n";
+        exit(1);
+      }
+      for (auto& itr : fs::directory_iterator(filePath)) {
+        if (itr.path().filename().string() == "refstars.txt") {
+          path = itr.path().string();
+          return;
+        }
+      }
+    } else if (argc == 1) { // if no arguments were given ask for asteroid name
+      cout << "  Asteroids:\n";
+      for (auto& itr : fs::directory_iterator(filePath)) {
+        if (is_directory(itr.path())) {
+          cout << '\t' << itr.path().stem().string() << '\n';
+        }
+      }
+      cout << "Option: ";
+      while (true) {
+        std::string buf;
+        getline(std::cin, buf);
+        std::transform(buf.begin(), buf.end(), buf.begin(), ::tolower);
+        buf.erase( remove_if(buf.begin(), buf.end(), isspace), buf.end() );
+        if (fs::exists(filePath / buf)) {
+          filePath /= buf; 
+          path = filePath.string();
+          break;
+        } else {
+          cout << "Try again: ";
+        }
+      }
+    } else if (argc == 2) {
+      filePath /= fs::path(argv[1]);
     }
-    path = "./images/" + filename + "/" + std::to_string(plateNumber) + "/refstars.txt";
+    if (argc <= 2) {  // if the plate number wasnt given
+      cout << "  Plates:\n";
+      for (auto& itr : fs::directory_iterator(filePath)) {
+        if (is_directory(itr.path())) {
+          cout << '\t' << itr.path().stem().string() << '\n';
+        }
+      }
+      cout << "Option: ";
+      while (true) {
+        std::string buf;
+        getline(std::cin, buf);
+        std::transform(buf.begin(), buf.end(), buf.begin(), ::tolower);
+        buf.erase( remove_if(buf.begin(), buf.end(), isspace), buf.end() );
+        if (fs::exists(filePath / buf / "refstars.txt")) {
+          filePath /= buf / fs::path("refstars.txt"); 
+          path = filePath.string() ;
+          plateNumber = stoi(buf);
+          break;
+        } else {
+          cout << "Try again: ";
+        }
+      }
+    }
   }
 
   static void readStars(std::vector<Star>& stars, const std::string& path) {
@@ -85,57 +134,15 @@ public:
         unsigned catalogID, supercosmosID;
         double xPix, yPix, ra2k, dec2k;
         ss >> catalogID >> xPix >> yPix >> supercosmosID >> ra2k >> dec2k;
-        stars.push_back( Star(catalogID, xPix, yPix, supercosmosID, Coords(ra2k,dec2k)) );
+        Coords j2000 = {ra2k, dec2k};
+        Coords b1950 = Coords::convertEpoch(2000, 1950, j2000);
+        stars.push_back( Star(catalogID, xPix, yPix, supercosmosID, j2000, b1950) );
       }
       file.close();
     } else {
       cout << "Couldn't open " << path << "\n";
       exit(1);
     }
-  }
-
-  /*
-    Converts between two RA/DEC systems based on time epochs
-      t0 = year basis of coordinates c0
-      t  = year of output coordinates 
-
-      From Duffett-Smith
-  */
-  static Coords convertEpoch(const double t0,
-                             const double t,
-                             const Coords& c0) {
-    double ra0 = c0.ra(RAD);
-    double dec0 = c0.dec(RAD);
-
-    double N = t - t0;
-    double S1 = (3.07327 + 1.33617*sin(ra0)*tan(dec0)) * N;
-    S1 /= 3600.0;
-
-    double ra = S1 + (c0.ra(DEG) / 15.0);
-    ra *= 15.0;
-    while (ra < 0)   ra += 360.0;
-    while (ra > 360) ra -= 360.0;
-
-    double S2 = 20.0426 * cos(ra0) * N;
-    S2 /= 3600.0;
-    double dec = c0.dec(DEG) + S2;
-
-    if (dec < -90) {
-      dec = -90 + abs(dec+90);
-      ra += 180.0;
-      if (ra > 360) ra -= 360;
-    } else if (dec > 90) {
-      dec = 90 - abs(dec-90);
-      ra += 180.0;
-      if (ra > 360) ra -= 360;
-    }
-    return Coords(ra, dec);
-  }
-
-  static Coords convertEpoch2(const double t0,
-                             const double t,
-                             const Coords& c0) {
-    return Coords();
   }
 };
 
