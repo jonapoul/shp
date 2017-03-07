@@ -7,11 +7,14 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <boost/algorithm/string.hpp>
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/lu.hpp>
 #include <experimental/filesystem>
 #include "Coords.h"
+#include "Definitions.h"
 using std::cout;
 namespace fs = std::experimental::filesystem;
+namespace ublas = boost::numeric::ublas;
 
 class Star {
 private:
@@ -19,10 +22,12 @@ private:
   double x_;        // x pixel
   double y_;        // y pixel
   unsigned scid_;   // ref number in supercosmos txt file
-  Coords j2000_;     
-  Coords b1950_;
+  Coords j2000_;    // J2000 RA/DEC
+  Coords b1950_;    // B1950 RA/DEC
   double xi_;       // xi coordinate in radians
   double eta_;      // eta coordinate in radians
+  double xifit_;    // least squares fitted xi value
+  double etafit_;   // least squares fitted eta value
 
 public:
   Star(const unsigned catid = 0,
@@ -32,12 +37,15 @@ public:
        const Coords& j2000 = {},
        const Coords& b1950 = {},
        const double xi = 0.0,
-       const double eta = 0.0) 
+       const double eta = 0.0,
+       const double xifit = 0.0,
+       const double etafit = 0.0) 
       : catid_(catid), x_(x), y_(y), scid_(scid), j2000_(j2000), b1950_(b1950), 
-        xi_(xi), eta_(eta) { }
+        xi_(xi), eta_(eta), xifit_(xifit), etafit_(etafit) { }
   Star(const Star& s)
       : catid_(s.catid_), x_(s.x_), y_(s.y_), scid_(s.scid_), j2000_(s.j2000_),
-        b1950_(s.b1950_), xi_(s.xi_), eta_(s.eta_) { }
+        b1950_(s.b1950_), xi_(s.xi_), eta_(s.eta_), xifit_(s.xifit_), 
+        etafit_(s.etafit_) { }
 
   inline unsigned catID() const { return catid_; }
   inline double x() const { return x_; }
@@ -47,13 +55,30 @@ public:
   inline Coords b1950() const { return b1950_; }
   inline double xi() const { return xi_; }
   inline double eta() const { return eta_; }
+  inline double xiFit() const { return xifit_; }
+  inline double etaFit() const { return etafit_; }
   inline void setJ2000(const Coords& j2000) { j2000_ = j2000; }
   inline void setB1950(const Coords& b1950) { b1950_ = b1950; }
   inline void setXi(const double xi) { xi_ = xi; }
   inline void setEta(const double eta) { eta_ = eta; }
+  inline void setXiFit(const double xifit) { xifit_ = xifit; }
+  inline void setEtaFit(const double etafit) { etafit_ = etafit; }
 
-  void printStar() const {
-      printf("%5d %8.2f %8.2f  %06d  %s  %s\n", catid_, x_, y_, scid_, j2000_.toString(true).c_str(), b1950_.toString(true).c_str());
+  void printStar(double& distance,
+                 const double stddev = -1.0) const {
+    printf("%5d %8.2f %8.2f ", catid_, x_, y_);
+    //printf("%s  %s  ", j2000_.toString(true).c_str(), b1950_.toString(true).c_str());
+    printf("%06d %9.6f %9.6f ", scid_, xi_, xifit_);
+    printf("%9.6f %9.6f ", eta_, etafit_);
+    //printf("%9.6f  %9.6f  ", 100*(xi_-xifit_)/xi_, 100*(eta_-etafit_)/eta_);
+    double dx = xi_-xifit_;
+    double dy = eta_-etafit_;
+    distance = sqrt(dx*dx + dy*dy) * RAD_TO_DEG * 3600;
+    printf("%6.3f  ", distance);
+    if (stddev > 0) {
+      //printf("%6.3f  ", distance/stddev);
+    }
+    printf("\n");
   }
 
   static void takeInput(const int argc,
@@ -75,11 +100,13 @@ public:
       }
     } else if (argc == 1) { // if no arguments were given ask for asteroid name
       cout << "  Asteroids:\n";
+      std::vector<std::string> asteroids;
       for (auto& itr : fs::directory_iterator(filePath)) {
-        if (is_directory(itr.path())) {
-          cout << '\t' << itr.path().stem().string() << '\n';
-        }
+        if (is_directory(itr.path()))
+          asteroids.push_back(itr.path().stem().string());
       }
+      for (auto& a : asteroids) cout << '\t' << a << '\n';
+      std::sort(asteroids.begin(), asteroids.end(), std::less<std::string>());
       cout << "Option: ";
       while (true) {
         std::string buf;
@@ -99,11 +126,13 @@ public:
     }
     if (argc <= 2) {  // if the plate number wasnt given
       cout << "  Plates:\n";
+      std::vector<std::string> plates;
       for (auto& itr : fs::directory_iterator(filePath)) {
-        if (is_directory(itr.path())) {
-          cout << '\t' << itr.path().stem().string() << '\n';
-        }
+        if (is_directory(itr.path()))
+          plates.push_back(itr.path().stem().string());
       }
+      std::sort(plates.begin(), plates.end(), std::less<std::string>());
+      for (auto& p : plates) cout << '\t' << p << '\n';
       cout << "Option: ";
       while (true) {
         std::string buf;
@@ -143,6 +172,101 @@ public:
       cout << "Couldn't open " << path << "\n";
       exit(1);
     }
+  }
+
+  static void findProjectionCoordinates(std::vector<Star>& stars) {
+    // first finding the star closest to the image centre
+    double xMax = 0, xMin = 10000, yMax = 0, yMin = 10000;
+    for (auto& s : stars) {
+      if      (s.x() > xMax) xMax = s.x();
+      else if (s.x() < xMin) xMin = s.x();
+      if      (s.y() > yMax) yMax = s.y();
+      else if (s.y() < yMin) yMin = s.y();
+    }
+    double xMid = xMin + (xMax - xMin) / 2.0;
+    double yMid = yMin + (yMax - yMin) / 2.0;
+    double minDistance = 10000;
+    // finding the centremost reference star
+    Coords tangentPoint;
+    for (auto& s : stars) {
+      double dx = s.x() - xMid;
+      double dy = s.y() - yMid;
+      double distance = sqrt(dx*dx + dy*dy);
+      if (distance < minDistance) {
+        minDistance = distance;
+        // setting that centre star as the tangent point
+        tangentPoint = s.b1950();
+      }
+    }
+    for (auto& s : stars) {
+      double xi, eta;
+      int status;
+      Coords::gnomonic(s.b1950(), tangentPoint, xi, eta, status);
+      s.setXi(xi);
+      s.setEta(eta);
+    }
+  }
+
+  /*
+    Solves the linear equation AX = Y
+      A = matrix of x, y coordinates
+      X = vector of 6 coefficients
+      Y = vector of xi, eta coordinates
+    Then adds the fitted xi,eta values to each Star array object
+  */
+  static void solveLinearEquation(std::vector<Star>& stars,
+                                  double& stddev) {
+    ublas::matrix<double> A(stars.size()*2, 6);
+    ublas::vector<double> Y(stars.size()*2);
+    for (size_t i = 0; i < 2*stars.size(); i += 2) {
+      // matrix A = (x1 y1 1  0  0  0)
+      //            (0  0  0  x1 y1 1)
+      //            (x2 y2 1  0  0  0)
+      //            (0  0  0  x2 y2 1) 
+      //            (................) etc, for each set of x, y coordinates 
+      A(i,0)   = A(i+1,3) = stars[i/2].x();
+      A(i,1)   = A(i+1,4) = stars[i/2].y();
+      A(i,2)   = A(i+1,5) = 1;
+      A(i,3)   = A(i,4)   = A(i,5)   = 0;
+      A(i+1,0) = A(i+1,1) = A(i+1,2) = 0;
+
+      // vector Y = (xi1, eta1, xi2, eta2, ...);
+      Y(i)   = stars[i/2].xi();
+      Y(i+1) = stars[i/2].eta();
+    }
+    ublas::matrix<double> At(ublas::trans(A));
+    ublas::matrix<double> At_A = prod(At, A);
+
+    // inverting (A^T * A)
+    ublas::permutation_matrix<std::size_t> pm(At_A.size1());
+    int status = lu_factorize(At_A, pm);
+    if (status != 0) {
+      cout << "Problem with LU factorisation\n";
+      exit(1);
+    }
+    ublas::matrix<double> inverse = ublas::identity_matrix<double>(At_A.size1());
+    lu_substitute(At_A, pm, inverse);
+    ublas::vector<double> At_Y = prod(At, Y);
+
+    // final vector of 6 least squares coefficients
+    // X = (A^T * A)^-1 * A^T * Y
+    ublas::vector<double> X = prod(inverse, At_Y);
+
+    double sumSq = 0.0;
+    for (auto& s : stars) {
+      double xifit = X(0)*s.x() + X(1)*s.y() + X(2);
+      s.setXiFit(xifit);
+      double etafit = X(3)*s.x() + X(4)*s.y() + X(5);
+      s.setEtaFit(etafit);
+
+      double dxi  = (s.xi()  - xifit)  * RAD_TO_DEG * 3600;  // units of arcsec
+      double deta = (s.eta() - etafit) * RAD_TO_DEG * 3600;
+      double distance = dxi*dxi + deta*deta;
+      sumSq += distance;
+    }
+    // stddev comes from slide 21, http://www.stat.purdue.edu/~xuanyaoh/stat350/xyApr6Lec26.pdf
+    // no idea if its valid in this case
+    stddev = sqrt( sumSq/(2*stars.size()-3) );
   }
 };
 

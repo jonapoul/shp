@@ -228,7 +228,7 @@ public:
 	/*
 		Transform tangent plane coordinates into spherical.
 		Given:
-			xi,eta 		double   tangent plane rectangular coordinates
+			xi,eta 	double   tangent plane rectangular coordinates
 			c0 			Coords   spherical coordinates of tangent point
 		Returned:
 			c 			Coords   spherical coordinates of the point at (xi,eta)
@@ -237,12 +237,12 @@ public:
 	                            const double eta, 
 	                            const Coords& c0, 
 	                            Coords& c) {
-		double dec0 	= c0.radDEC_;
-		double ra0  	= c0.radRA_;
+		double dec0 = c0.radDEC_;
+		double ra0  = c0.radRA_;
 		double sin_dec0 = sin(dec0);
 		double cos_dec0 = cos(dec0);
-		double denom 	= cos_dec0 - eta*sin_dec0;
-		double atan 	= atan2(xi, denom) + ra0;
+		double denom = cos_dec0 - eta*sin_dec0;
+		double atan  = atan2(xi, denom) + ra0;
 		while (atan > 2.0*M_PI) atan -= 2.0*M_PI;
 		while (atan < 0.0)	  	atan += 2.0*M_PI;
 		c.set_ra(atan, RAD);
