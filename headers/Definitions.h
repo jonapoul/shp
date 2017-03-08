@@ -29,7 +29,15 @@
 #define PLATE_TO_PRINT 14591
 
 // used to specify which kind of angle you're working with when getting/setting RA/DEC
-enum AngleUnit { DEG, RAD };
+enum AngleUnit { 
+  DEG, 
+  RAD 
+};
 
+// used to pass around the x/y coords of start/end points of asteroid
+struct Cartesian {
+  double x;
+  double y;
+};
 
 #endif

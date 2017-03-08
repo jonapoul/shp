@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <array>
 #include <vector>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/lu.hpp>
@@ -64,8 +65,7 @@ public:
   inline void setXiFit(const double xifit) { xifit_ = xifit; }
   inline void setEtaFit(const double etafit) { etafit_ = etafit; }
 
-  void printStar(double& distance,
-                 const double stddev = -1.0) const {
+  void printStar(const double rms) const {
     printf("%5d %8.2f %8.2f ", catid_, x_, y_);
     //printf("%s  %s  ", j2000_.toString(true).c_str(), b1950_.toString(true).c_str());
     printf("%06d %9.6f %9.6f ", scid_, xi_, xifit_);
@@ -73,11 +73,11 @@ public:
     //printf("%9.6f  %9.6f  ", 100*(xi_-xifit_)/xi_, 100*(eta_-etafit_)/eta_);
     double dx = xi_-xifit_;
     double dy = eta_-etafit_;
-    distance = sqrt(dx*dx + dy*dy) * RAD_TO_DEG * 3600;
-    printf("%6.3f  ", distance);
-    if (stddev > 0) {
-      //printf("%6.3f  ", distance/stddev);
-    }
+    /* angular distance between actual and fitted positions, in arcsecs */
+    double distance = sqrt(dx*dx + dy*dy) * RAD_TO_DEG * 3600;
+    printf("%6.4f ", distance);
+    printf("%6.3f ", distance/rms);
+
     printf("\n");
   }
 
@@ -131,7 +131,11 @@ public:
         if (is_directory(itr.path()))
           plates.push_back(itr.path().stem().string());
       }
-      std::sort(plates.begin(), plates.end(), std::less<std::string>());
+      auto plateSorting = [](const std::string& a, const std::string& b) {
+        int ai = stoi(a), bi = stoi(b);
+        return ai < bi;
+      };
+      std::sort(plates.begin(), plates.end(), plateSorting);
       for (auto& p : plates) cout << '\t' << p << '\n';
       cout << "Option: ";
       while (true) {
@@ -151,15 +155,25 @@ public:
     }
   }
 
-  static void readStars(std::vector<Star>& stars, const std::string& path) {
+  static void readStars(std::vector<Star>& stars, 
+                        Cartesian& midpoint, 
+                        const std::string& path) {
     std::ifstream file(path);
     if (file.is_open()) {
       while (!file.eof()) {
         std::string buffer;
         getline(file, buffer);
+        std::stringstream ss(buffer);
         if (buffer[0] == '#' || buffer.length() == 0)
           continue;
-        std::stringstream ss(buffer);
+        if (buffer[0] == '@') {
+          char temp;
+          Cartesian c1, c2;
+          ss >> temp >> c1.x >> c1.y >> c2.x >> c2.y;
+          midpoint.x = c1.x + abs(c1.x - c2.x)/2.0;
+          midpoint.y = c1.y + abs(c1.y - c2.y)/2.0;
+          continue;
+        }
         unsigned catalogID, supercosmosID;
         double xPix, yPix, ra2k, dec2k;
         ss >> catalogID >> xPix >> yPix >> supercosmosID >> ra2k >> dec2k;
@@ -174,7 +188,8 @@ public:
     }
   }
 
-  static void findProjectionCoordinates(std::vector<Star>& stars) {
+  static void findProjectionCoordinates(std::vector<Star>& stars, 
+                                        Coords& tangentPoint) {
     // first finding the star closest to the image centre
     double xMax = 0, xMin = 10000, yMax = 0, yMin = 10000;
     for (auto& s : stars) {
@@ -187,7 +202,6 @@ public:
     double yMid = yMin + (yMax - yMin) / 2.0;
     double minDistance = 10000;
     // finding the centremost reference star
-    Coords tangentPoint;
     for (auto& s : stars) {
       double dx = s.x() - xMid;
       double dy = s.y() - yMid;
@@ -215,7 +229,7 @@ public:
     Then adds the fitted xi,eta values to each Star array object
   */
   static void solveLinearEquation(std::vector<Star>& stars,
-                                  double& stddev) {
+                                  std::array<double,6>& coefficients) {
     ublas::matrix<double> A(stars.size()*2, 6);
     ublas::vector<double> Y(stars.size()*2);
     for (size_t i = 0; i < 2*stars.size(); i += 2) {
@@ -245,12 +259,18 @@ public:
       exit(1);
     }
     ublas::matrix<double> inverse = ublas::identity_matrix<double>(At_A.size1());
-    lu_substitute(At_A, pm, inverse);
+    try { 
+      lu_substitute(At_A, pm, inverse); 
+    } catch (...) { 
+      cout << "Problem with LU substitution\n"; 
+      exit(1);
+    }
     ublas::vector<double> At_Y = prod(At, Y);
 
     // final vector of 6 least squares coefficients
     // X = (A^T * A)^-1 * A^T * Y
     ublas::vector<double> X = prod(inverse, At_Y);
+    std::copy(X.begin(), X.end(), coefficients.begin());
 
     double sumSq = 0.0;
     for (auto& s : stars) {
@@ -264,9 +284,23 @@ public:
       double distance = dxi*dxi + deta*deta;
       sumSq += distance;
     }
-    // stddev comes from slide 21, http://www.stat.purdue.edu/~xuanyaoh/stat350/xyApr6Lec26.pdf
-    // no idea if its valid in this case
-    stddev = sqrt( sumSq/(2*stars.size()-3) );
+  }
+
+  /*
+    Outputs rms of xi and eta differences, both in units of arcsecs
+  */
+  static double rms(const std::vector<Star>& stars, double& xiRMS, double& etaRMS) {
+    xiRMS = etaRMS = 0.0;
+    for (const auto& s : stars) {
+      xiRMS  += pow(s.xi() - s.xiFit(),  2);
+      etaRMS += pow(s.eta()- s.etaFit(), 2);
+    }
+    xiRMS  = sqrt(xiRMS  / stars.size()) * RAD_TO_DEG * 3600;
+    etaRMS = sqrt(etaRMS / stars.size()) * RAD_TO_DEG * 3600;
+    cout << "dξ = " << xiRMS << ' ' << "dη = " << etaRMS << '\n';
+    double rms = sqrt(xiRMS*xiRMS + etaRMS*etaRMS);
+    cout << "rms = " << rms << '\n';
+    return rms;
   }
 };
 

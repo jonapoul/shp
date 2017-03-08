@@ -63,12 +63,12 @@ public:
       char buffer[50];
 
       // Match number and Plate ID
-      sprintf(buffer, "%03d\tplate ID       = %d", m[i].count(), m[i].p().id());
+      sprintf(buffer, "%03d\tplate ID       = %d", m[i].count()+1, m[i].p().id());
       ss << buffer;
       length = SIZE-ss.str().length();
       ss << std::string(length+3, ' ') << "| ";
       if (canPrint) {
-        sprintf(buffer, "%03d\tplate ID       = %d", m[i+1].count(), m[i+1].p().id());
+        sprintf(buffer, "%03d\tplate ID       = %d", m[i+1].count()+1, m[i+1].p().id());
         ss << buffer;
       }
       cout << ss.str() << '\n';
@@ -219,7 +219,6 @@ public:
 
       // Sort-of signal to noise ratio
       double snr1 = Ephemeris::counts(m[i].p().exposure(), m[i].mag()) / m[i].p().countLimit();
-      double snr2 = Ephemeris::counts(m[i+1].p().exposure(), m[i+1].mag()) / m[i+1].p().countLimit();
       if ( abs(m[i].mag() - UNKNOWN_MAGNITUDE) < 1e-6 ) {
         sprintf(buffer, "\tSNR            = UNKNOWN");
       } else if (snr1 > 1e5){
@@ -231,6 +230,7 @@ public:
       length = SIZE-ss.str().length();
       ss << std::string(length, ' ') << "| ";
       if (canPrint) {
+        double snr2 = Ephemeris::counts(m[i+1].p().exposure(), m[i+1].mag()) / m[i+1].p().countLimit();
         if ( abs(m[i+1].mag() - UNKNOWN_MAGNITUDE) < 1e-6 ) {
           sprintf(buffer, "\tSNR            = UNKNOWN");
         } else if (snr2 > 1e5) {
@@ -322,7 +322,7 @@ public:
       cout << matchCount << " matching plate" << (matchCount>1?"s":"") << " found for " << s;
       cout << " between " << firstDate << " and " << lastDate << '\n';
       cout << "The shown dates/times represent the middle of the exposure, not the start\n";
-      cout << "Uncertainties represent an ellipse up to 3 sigma, i.e. 99.7% certainty\n";
+      cout << "Uncertainties represent an ellipse up to 3σ, i.e. 99.7% certainty\n";
     } else {
       cout << "No matches found for " << s << "!\n";
     }

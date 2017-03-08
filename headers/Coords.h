@@ -242,11 +242,12 @@ public:
 		double sin_dec0 = sin(dec0);
 		double cos_dec0 = cos(dec0);
 		double denom = cos_dec0 - eta*sin_dec0;
-		double atan  = atan2(xi, denom) + ra0;
-		while (atan > 2.0*M_PI) atan -= 2.0*M_PI;
-		while (atan < 0.0)	  	atan += 2.0*M_PI;
-		c.set_ra(atan, RAD);
-		c.set_dec(atan2(sin_dec0 + eta*cos_dec0, sqrt(xi*xi + denom*denom)), RAD);
+		double ra  = atan2(xi, denom) + ra0;
+		while (ra > 2.0*M_PI) ra -= 2.0*M_PI;
+		while (ra < 0.0)	  	ra += 2.0*M_PI;
+		c.set_ra(ra, RAD);
+		double dec = atan2(sin_dec0 + eta*cos_dec0, sqrt(xi*xi + denom*denom));
+		c.set_dec(dec, RAD);
 	}
 
 	/*
