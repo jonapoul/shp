@@ -11,11 +11,29 @@
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/lu.hpp>
 #include <experimental/filesystem>
+#include <errno.h>
 #include "Coords.h"
 #include "Definitions.h"
 using std::cout;
 namespace fs = std::experimental::filesystem;
 namespace ublas = boost::numeric::ublas;
+
+struct SuperCosmosStar {
+  unsigned id;
+  Coords b1950;
+  Coords j2000;
+  double magnitude;
+  double xi;
+  double eta;
+};
+struct CatalogStar {
+  unsigned id;
+  double x;
+  double y;
+  double magnitude;
+  double xi;
+  double eta;
+};
 
 class Star {
 private:
@@ -48,18 +66,14 @@ public:
         b1950_(s.b1950_), xi_(s.xi_), eta_(s.eta_), xifit_(s.xifit_), 
         etafit_(s.etafit_) { }
 
-  inline unsigned catID() const { return catid_; }
   inline double x() const { return x_; }
   inline double y() const { return y_; }
-  inline unsigned scID() const { return scid_; }
   inline Coords j2000() const { return j2000_; }
   inline Coords b1950() const { return b1950_; }
   inline double xi() const { return xi_; }
   inline double eta() const { return eta_; }
   inline double xiFit() const { return xifit_; }
   inline double etaFit() const { return etafit_; }
-  inline void setJ2000(const Coords& j2000) { j2000_ = j2000; }
-  inline void setB1950(const Coords& b1950) { b1950_ = b1950; }
   inline void setXi(const double xi) { xi_ = xi; }
   inline void setEta(const double eta) { eta_ = eta; }
   inline void setXiFit(const double xifit) { xifit_ = xifit; }
@@ -68,7 +82,7 @@ public:
   void printStar(const double rms) const {
     printf("%5d %8.2f %8.2f ", catid_, x_, y_);
     //printf("%s  %s  ", j2000_.toString(true).c_str(), b1950_.toString(true).c_str());
-    printf("%06d %9.6f %9.6f ", scid_, xi_, xifit_);
+    printf("%5d %9.6f %9.6f ", scid_, xi_, xifit_);
     printf("%9.6f %9.6f ", eta_, etafit_);
     //printf("%9.6f  %9.6f  ", 100*(xi_-xifit_)/xi_, 100*(eta_-etafit_)/eta_);
     double dx = xi_-xifit_;
@@ -84,10 +98,13 @@ public:
   static void takeInput(const int argc,
                         const char* argv[],
                         std::string& path,
-                        unsigned& plateNumber) {
+                        unsigned& plateNumber,
+                        std::string& asteroidName) {
     fs::path filePath = "./images";
     if (argc == 3) { // if all options where given as arguments
       filePath /= fs::path(argv[1]) / fs::path(argv[2]);
+      asteroidName = std::string(argv[1]);
+      plateNumber = stoi(std::string(argv[2]));
       if (!fs::exists(filePath)) {
         cout << filePath.string() << " doesn't exist\n";
         exit(1);
@@ -115,6 +132,7 @@ public:
         buf.erase( remove_if(buf.begin(), buf.end(), isspace), buf.end() );
         if (fs::exists(filePath / buf)) {
           filePath /= buf; 
+          asteroidName = buf;
           path = filePath.string();
           break;
         } else {
@@ -123,6 +141,7 @@ public:
       }
     } else if (argc == 2) {
       filePath /= fs::path(argv[1]);
+      asteroidName = std::string(argv[1]);
     }
     if (argc <= 2) {  // if the plate number wasnt given
       cout << "  Plates:\n";
@@ -156,7 +175,8 @@ public:
   }
 
   static void readStars(std::vector<Star>& stars, 
-                        Cartesian& midpoint, 
+                        double& x, 
+                        double& y, 
                         const std::string& path) {
     std::ifstream file(path);
     if (file.is_open()) {
@@ -168,10 +188,10 @@ public:
           continue;
         if (buffer[0] == '@') {
           char temp;
-          Cartesian c1, c2;
-          ss >> temp >> c1.x >> c1.y >> c2.x >> c2.y;
-          midpoint.x = c1.x + abs(c1.x - c2.x)/2.0;
-          midpoint.y = c1.y + abs(c1.y - c2.y)/2.0;
+          double x1, x2, y1, y2;
+          ss >> temp >> x1 >> y1 >> x2 >> y2;
+          x = x1 + abs(x1 - x2)/2.0;
+          y = y1 + abs(y1 - y2)/2.0;
           continue;
         }
         unsigned catalogID, supercosmosID;
@@ -179,7 +199,7 @@ public:
         ss >> catalogID >> xPix >> yPix >> supercosmosID >> ra2k >> dec2k;
         Coords j2000 = {ra2k, dec2k};
         Coords b1950 = Coords::convertEpoch(2000, 1950, j2000);
-        stars.push_back( Star(catalogID, xPix, yPix, supercosmosID, j2000, b1950) );
+        stars.push_back( {catalogID, xPix, yPix, supercosmosID, j2000, b1950} );
       }
       file.close();
     } else {
@@ -279,7 +299,7 @@ public:
       double etafit = X(3)*s.x() + X(4)*s.y() + X(5);
       s.setEtaFit(etafit);
 
-      double dxi  = (s.xi()  - xifit)  * RAD_TO_DEG * 3600;  // units of arcsec
+      double dxi  = (s.xi()  - xifit)  * RAD_TO_DEG * 3600;  // in arcsecs
       double deta = (s.eta() - etafit) * RAD_TO_DEG * 3600;
       double distance = dxi*dxi + deta*deta;
       sumSq += distance;
@@ -289,7 +309,9 @@ public:
   /*
     Outputs rms of xi and eta differences, both in units of arcsecs
   */
-  static double rms(const std::vector<Star>& stars, double& xiRMS, double& etaRMS) {
+  static double rms(const std::vector<Star>& stars, 
+                    double& xiRMS, 
+                    double& etaRMS) {
     xiRMS = etaRMS = 0.0;
     for (const auto& s : stars) {
       xiRMS  += pow(s.xi() - s.xiFit(),  2);
@@ -297,10 +319,113 @@ public:
     }
     xiRMS  = sqrt(xiRMS  / stars.size()) * RAD_TO_DEG * 3600;
     etaRMS = sqrt(etaRMS / stars.size()) * RAD_TO_DEG * 3600;
-    cout << "dξ = " << xiRMS << ' ' << "dη = " << etaRMS << '\n';
+    cout << "dξ = " << xiRMS << ' ' << "dη = " << etaRMS << ' ';
     double rms = sqrt(xiRMS*xiRMS + etaRMS*etaRMS);
     cout << "rms = " << rms << '\n';
     return rms;
+  }
+
+  static void matchStars(std::vector<Star>& stars,
+                         const std::string& filePath,
+                         const unsigned& plateNumber,
+                         const std::string& asteroidName, 
+                         const Coords& tangentPoint) {
+    // getting initial coefficients from the file stars
+    std::array<double,6> coeff;
+    solveLinearEquation(stars, coeff);
+
+    // reading the catalog file
+    fs::path parent = fs::path(filePath).parent_path();
+    std::string catalogfilename = asteroidName + "_" + std::to_string(plateNumber) + "_10_catalog.dat";
+    fs::path catalogpath = parent / catalogfilename;
+    std::ifstream catalogfile(catalogpath.string());
+    std::vector<CatalogStar> catalog;
+    if (catalogfile.is_open()) {
+      for (std::string buffer; getline(catalogfile, buffer); ) {
+        std::stringstream ss(buffer);
+        if (buffer.empty() || buffer[0] == '#') 
+          continue;
+        unsigned id;
+        double x, y, magnitude;
+        ss >> id >> x >> y >> magnitude;
+        CatalogStar cs = {id, x, y, magnitude, 0, 0};
+        catalog.push_back(cs);
+      }
+      catalogfile.close();
+      auto catalogsort = [](CatalogStar& a,CatalogStar& b) { return a.magnitude < b.magnitude; };
+      std::sort(catalog.begin(), catalog.end(), catalogsort);
+      for (int i = catalog.size()-1; i >= 1000; i--)
+        catalog.erase(catalog.begin()+i);
+    } else {
+      cout << "Couldn't open " << catalogfilename << "\n";
+      exit(1);
+    }
+    // calculating xi/eta for each
+    for (auto& c : catalog) {
+      c.xi  = coeff[0]*c.x + coeff[1]*c.y + coeff[2];
+      c.eta = coeff[3]*c.x + coeff[4]*c.y + coeff[5];
+    }
+
+    // reading the supercosmos file
+    std::string scfilename = std::to_string(plateNumber) + "supercosmos.txt";
+    fs::path scpath = parent / scfilename;
+    std::ifstream supercosmosfile(scpath.string());
+    std::vector<SuperCosmosStar> supercosmos;
+    if (supercosmosfile.is_open()) {
+      for (std::string buffer; getline(supercosmosfile, buffer); ) {
+        std::stringstream ss(buffer);
+        if (buffer.length() == 0 || buffer[0] == '#') 
+          continue;
+        unsigned id;
+        double ra2k, dec2k, magnitude, temp;
+        double mags[4];
+        ss >> id >> ra2k >> dec2k;
+        ss >> temp >> temp >> temp >> temp;
+        ss >> mags[0] >> mags[1] >> mags[2] >> mags[3];
+        magnitude = (mags[0] + mags[1] + mags[2] + mags[3]) / 4.0;
+        Coords j2000 = {ra2k, dec2k};
+        Coords b1950 = Coords::convertEpoch(2000, 1950, j2000);
+        SuperCosmosStar scs = {id, b1950, j2000, magnitude, 0, 0};
+        supercosmos.push_back(scs);
+      }
+      supercosmosfile.close();
+      auto supercosmossort = [](SuperCosmosStar& a,SuperCosmosStar& b) { return a.magnitude < b.magnitude; };
+      std::sort(supercosmos.begin(), supercosmos.end(), supercosmossort);
+      for (int i = supercosmos.size()-1; i >= 1000; i--)
+        supercosmos.erase(supercosmos.begin()+i);
+    } else {
+      cout << "Couldn't open " << scfilename << "\n";
+      exit(1);
+    }
+    // calculating xi/eta for each
+    for (auto& sc : supercosmos) {
+      int status;
+      Coords::gnomonic(sc.b1950, tangentPoint, sc.xi, sc.eta, status);
+    }
+
+    double threshold = 4e-6;  // around 1 arcsec in radians
+    for (const auto& c : catalog) {
+      for (const auto& sc : supercosmos) {
+        double dxi = sc.xi - c.xi;
+        double deta = sc.eta - c.eta;
+        double distance = sqrt(dxi*dxi + deta*deta);
+        if (distance < threshold) {
+          bool canAddToArray = true;
+          for (auto& s : stars) {
+            if (c.id == s.catid_) {
+              canAddToArray = false;
+              break;
+            }
+          }
+          if (canAddToArray) {
+            Star s {c.id, c.x, c.y, sc.id, sc.j2000, sc.b1950, sc.xi, sc.eta};
+            stars.push_back(s);
+          }
+        }
+      }
+    }
+    auto starsort = [](Star& a,Star& b) { return a.catid_ < b.catid_; };
+    std::sort(stars.begin(), stars.end(), starsort);
   }
 };
 
