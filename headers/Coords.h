@@ -1,10 +1,12 @@
 #ifndef COORDS_H
 #define COORDS_H
+
 #include <iostream>
 #include <vector>
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <fstream>
 #include <math.h>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/io.hpp>
@@ -58,8 +60,8 @@ public:
 		return (specifier == DEG) ? degDEC_ : radDEC_;
 	}
 
-	inline void set_ra(const double ra, 
-	                   const AngleUnit& specifier) {
+	inline void setRA(const double ra, 
+	                  const AngleUnit& specifier) {
 		if (specifier == DEG) {
 			degRA_ = ra;
 			radRA_ = ra * DEG_TO_RAD;
@@ -69,8 +71,8 @@ public:
 		}
 	}
 
-	inline void set_dec(const double dec,
-	                    const AngleUnit& specifier) {
+	inline void setDEC(const double dec,
+	                   const AngleUnit& specifier) {
 		if (specifier == DEG) {
 			degDEC_ = dec;
 			radDEC_ = dec * DEG_TO_RAD;
@@ -78,6 +80,11 @@ public:
 			radDEC_ = dec;
 			degDEC_ = dec * RAD_TO_DEG;
 		}
+	}
+
+	friend std::ostream& operator<<(std::ostream& stream, const Coords& c) {
+		stream << c.toString();
+		return stream;
 	}
 
 	/*
@@ -133,7 +140,7 @@ public:
 		} else output << '+';
 		int d = int(decimal);
 		if (d < 10) output << '0';
-		output << d << '\370';
+		output << d << 'd';
 		decimal = (decimal - d) * 60.0;
 		int m = int(decimal);
 		if (m < 10) output << '0';
@@ -152,7 +159,7 @@ public:
 		if (isSexagesimal) 
 			return RAtoString() + ", " + DECtoString();
 		else
-			return std::to_string(degRA_) + ", " + std::to_string(degDEC_);
+			return std::to_string(degRA_) + "\t" + std::to_string(degDEC_);
 	}
 
 	/*
@@ -185,11 +192,10 @@ public:
 											2 = error, antistar on tangent plane
 											3 = error, antistar too far from axis
 	*/
-	static void gnomonic(const Coords& c, 
-	                     const Coords& c0, 
-	                     double& xi, 
-	                     double& eta, 
-	                     int& status) {
+	static int gnomonic(const Coords& c, 
+	                    const Coords& c0, 
+	                    double& xi, 
+	                    double& eta) {
 		double ra   = c.radRA_;
 		double dec  = c.radDEC_;
 		double ra0  = c0.radRA_;
@@ -208,6 +214,7 @@ public:
 
 	  // Handle vectors too far from axis
 	  double TINY = 1e-6;
+	  int status;
 	  if ( denom > TINY ) { 
 	  	status = 0;
 	  } else if ( denom >= 0.0 ) {
@@ -219,10 +226,10 @@ public:
 	  } else {
 	    	status = 3;
 	  }
-
 		// Compute tangent plane coordinates (even in dubious cases)
 	  xi  = ( cos_dec*sin_dRA ) / denom;
 	  eta = ( sin_dec*cos_dec0 - cos_dec*sin_dec0*cos_dRA ) / denom;
+	  return status;
 	}
 
 	/*
@@ -245,9 +252,9 @@ public:
 		double ra  = atan2(xi, denom) + ra0;
 		while (ra > 2.0*M_PI) ra -= 2.0*M_PI;
 		while (ra < 0.0)	  	ra += 2.0*M_PI;
-		c.set_ra(ra, RAD);
+		c.setRA(ra, RAD);
 		double dec = atan2(sin_dec0 + eta*cos_dec0, sqrt(xi*xi + denom*denom));
-		c.set_dec(dec, RAD);
+		c.setDEC(dec, RAD);
 	}
 
 	/*
@@ -274,8 +281,8 @@ public:
 		double ra = atan2(y, x);
 		while (ra < 0.0) 		ra += 2.0*M_PI;
 		while (ra > 2.0*M_PI) 	ra -= 2.0*M_PI;
-		c.set_ra(ra, RAD);
-		c.set_dec(M_PI/2.0 - atan2(sqrt(x*x + y*y), z), RAD);
+		c.setRA(ra, RAD);
+		c.setDEC(M_PI/2.0 - atan2(sqrt(x*x + y*y), z), RAD);
 	}
 
 	/*
@@ -323,6 +330,16 @@ public:
 		return (mm - (PLATE_SIZE / 2.0)) * (ARCSECS_PER_MM * M_PI) / (3600.0 * 180.0);
 	}
 
+	static Coords mmToCoords(const double x,
+	                         const double y,
+	                         const Coords& tangentPoint) {
+		double xi  = mmToRads(x);
+		double eta = mmToRads(y);
+		Coords output;
+		inverseGnomonic(xi, eta, tangentPoint, output);
+		return output;
+	}
+
 	/*
 	  Converts between two RA/DEC systems based on time epochs
 	    year1 = basis of coordinates c1
@@ -357,7 +374,7 @@ public:
 	  	double CZ = cos(z), 		SZ = sin(z);
 	  	double CT = cos(theta), ST = sin(theta);
 	  	ublas::matrix<double> m(3,3);
-	  	m(0,0) = CX*CT*CZ-SX*SZ; 	m(0,1) = CX*CT*SZ+SX*CZ; 	m(0,2) = CX*ST;
+	  	m(0,0) =  CX*CT*CZ-SX*SZ;	m(0,1) =  CX*CT*SZ+SX*CZ;	m(0,2) = CX*ST;
 	  	m(1,0) = -SX*CT*CZ-CX*SZ; m(1,1) = -SX*CT*SZ+CX*CZ; m(1,2) = -SX*ST;
 	  	m(2,0) = -ST*CZ; 					m(2,1) = -ST*SZ; 					m(2,2) = CT;
 	  	return m;
@@ -380,8 +397,39 @@ public:
 	  double m = w(0), n = w(1), p = w(2);
 
 	  double ra2  = atan2(n, m) * RAD_TO_DEG;
+	  while (ra2 > 360) ra2 -= 360;
+	  while (ra2 < 0)   ra2 += 360;
 	  double dec2 = asin(p) * RAD_TO_DEG;
 	  return Coords(ra2, dec2);
+	}
+
+	static void coordsToPlatePosition(const Coords& asteroidCoords,
+	                                  const unsigned plateID,
+	                                  double& x,
+	                                  double& y) {
+		std::string plateNumStr = std::to_string(plateID);
+		Coords plateCentre;
+		std::ifstream catalogfile("catalog.txt");
+		if (catalogfile.is_open()) {
+			while (plateNumStr.length() < 5)
+				plateNumStr = ' ' + plateNumStr;
+			for (std::string buffer; getline(catalogfile, buffer); ) {
+				if (buffer.empty()) 
+					continue;
+				if (buffer.substr(2, 5) == plateNumStr) {
+					plateCentre.parseCoordsFromPlate(buffer);
+					break;
+				}
+			}
+			catalogfile.close();
+			double xi, eta;
+			Coords::gnomonic(asteroidCoords, plateCentre, xi, eta);
+			x = radsToMM(xi);
+			y = radsToMM(eta);
+		} else {
+			cout << "catalog.txt couldn't be opened\n";
+			exit(1);
+		}
 	}
 };
 

@@ -57,8 +57,10 @@ public:
 	*/
 	bool parsePlateString(const std::string& buffer) {
 		// T = tracked shot, M = multiple shots, P = full-aperture prism (distorted)
-		if (buffer[7] == 'T' || buffer[7] == 'M' || buffer[7] == 'P') 			return false;
-		if (buffer.substr(16,4) == "TEST" || buffer.substr(15,4) == "TEST") return false;
+		bool isInvalid = buffer[7] == 'T' || buffer[7] == 'M' || 
+										 buffer[7] == 'P' || buffer.substr(16,4) == "TEST" || 
+										 buffer.substr(15,4) == "TEST";
+		if (isInvalid) return false;
 
 		try { id_ = stoi(buffer.substr(2, 5)); }
 		catch (...) { return false; }
@@ -346,14 +348,19 @@ public:
 		double expTime   = p.exposure() / 86400.0;	// in days
 		double startTime = p.julian() - (expTime/2.0);
 		double endTime   = p.julian() + (expTime/2.0);
-		Coords startCoords = Coords::linInterp(coords.first, times.first, coords.second, times.second, startTime);
-		Coords endCoords   = Coords::linInterp(coords.first, times.first, coords.second, times.second, endTime);
-
+		Coords startCoords = Coords::linInterp(coords.first, times.first, 
+		                                       coords.second, times.second, 
+		                                       startTime);
+		Coords endCoords   = Coords::linInterp(coords.first, times.first, 
+		                                       coords.second, times.second, 
+		                                       endTime);
 		double xiStart, xiEnd, etaStart, etaEnd;
-		int status1, status2;
-		Coords::gnomonic(startCoords, p.coords_, xiStart, etaStart, status1);
-		Coords::gnomonic(endCoords,   p.coords_, xiEnd,   etaEnd,   status2);
-		if (status1 != 0 || status2 != 0) printf("Plate %d failed at exposureBoundaries()!\n", p.id());
+		int status1 = Coords::gnomonic(startCoords, p.coords_, xiStart, etaStart);
+		int status2 = Coords::gnomonic(endCoords,   p.coords_, xiEnd,   etaEnd  );
+		if (status1 != 0 || status2 != 0) {
+			printf("Plate %d failed at exposureBoundaries()!\n", p.id());
+			exit(1);
+		}
 
 		double x1 = Coords::radsToMM(xiStart);
 		double y1 = Coords::radsToMM(etaStart);

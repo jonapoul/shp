@@ -81,10 +81,9 @@ int main(int argc, char* argv[]) {
 		// more accurate tests
 		if (angularDistance < distanceThreshold) {	
 			double xi, eta;
-			int status;
 			// calculate the x/y coordinates of the interpolated point, with the plate
 			// centre as the tangent point
-			Coords::gnomonic(interpedCoords, plateCoords, xi, eta, status);
+			int status = Coords::gnomonic(interpedCoords, plateCoords, xi, eta);
 			// if the transformation was valid
 			if (status == 0) {
 				Coords fromXAxis, fromYAxis;
@@ -138,5 +137,3 @@ int main(int argc, char* argv[]) {
 	chr::duration<double> elapsed_seconds = chr::system_clock::now() - start;
 	printf("Elapsed time: %.4fs\n", elapsed_seconds.count());
 }
-
-// apophis throwing an error when using -snr????
