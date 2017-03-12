@@ -186,7 +186,8 @@ public:
 				return;
 			}
 		}
-		// if the argument doesnt exist as a filename, default to Ceres and pass a flag back to the main program
+		// if the argument doesnt exist as a filename, print out a list and ask which the user wants
+		name = std::string(argv[1]);
 		printFiles(name, filterSNR);
 	}
 
@@ -198,7 +199,7 @@ public:
 
 		for (auto& itr : fs::directory_iterator("./ephemeris")) {
 			if (is_directory(itr.path())) {
-				std::string name = itr.path().stem().string();
+				std::string filename = itr.path().stem().string();
 				
 				// go through the recently-found folder and add all filename to an array
 				fs::path path = itr.path();				
@@ -214,8 +215,8 @@ public:
 				for (auto f : files) maxLength = (f.length() > maxLength) ? f.length() : maxLength;
 
 				// Switch the first letter to a capital to it reads a bit better
-				name[0] = toupper(name[0]);
-				folderNames.push_back(name);
+				filename[0] = toupper(filename[0]);
+				folderNames.push_back(filename);
 				folders.push_back(files);
 			}
 		}
@@ -237,13 +238,13 @@ public:
 
 		// printing out an ordered list of all files in each folder under ./ephemeris/
 		// yes I know it's a bit messy but it comes out nice
-		int FILES_PER_LINE = 10;
-		for (size_t i = 0; i < folders.size(); i++) {
+		int FILES_PER_LINE = 12;
+		for (size_t i = 0; name.length() == 0 && i < folders.size(); i++) {
 			cout << "   " << folderNames[i] << ":\n";
 			for (size_t j = 0; j < folders[i].size(); j += FILES_PER_LINE) {
 				cout << '\t';
 				for (int k = 0; j+k < folders[i].size() && k < FILES_PER_LINE; k++) {
-					cout << folders[i][j+k] << std::string(maxLength+2-folders[i][j+k].length(), ' ');
+					cout << folders[i][j+k] << std::string(maxLength+1-folders[i][j+k].length(), ' ');
 				}
 				cout << '\n';
 			}
@@ -251,12 +252,21 @@ public:
 		}
 
 		// taking input from the user
-		cout << "Enter option: ";
-		std::string temp, output;		
+		if (name.length() == 0) 
+			cout << "Enter option: ";
+		std::string temp, output;
 		while (true) {
-			getline(std::cin, temp);
-			// convert input to all lowercase, for convenience
-			for (auto& c : output) c = tolower(c);
+			if (name.length() == 0) 
+				getline(std::cin, temp);
+			else 
+				temp = name;
+			// getting the year of the asteroid
+			std::string year = (temp.length() >= 4) ? temp.substr(0,4) : temp;
+			std::vector<std::string> possibilities;
+			bool hasNumber = (!isalpha(temp[0]));
+			// all to lower case
+			for (auto& c : temp) c = tolower(c);
+			char firstLetter = temp[0];
 			size_t space = temp.find(" ");
 			// if the input is two or more words
 			if (space != std::string::npos) {
@@ -275,11 +285,28 @@ public:
 						// if it matches, return it
 						name = output;
 						return;
+					} else if (hasNumber) {
+						std::string fileYear = (temp.length() >= 4) ? file.substr(0,4) : file.substr(0, temp.length());
+						if (year == fileYear)
+							possibilities.push_back(file);
+					} else {
+						if (file[0] == firstLetter)
+							possibilities.push_back(file);
 					}
 				}
 			}
 			// if no matches, ask for another and try again
-			cout << "That filename doesn't exist, try again: ";
+			if (possibilities.size() > 0) {
+				cout << "Did you mean:\n\t";
+				size_t longest = 0;
+				for (int i = 1; i <= possibilities.size(); i++) {
+					cout << possibilities[i-1] << std::string(maxLength-possibilities[i-1].length()+1, ' ');
+					if (i % FILES_PER_LINE == 0) cout << "\n\t";
+				}
+				cout << '\n';
+			}
+			cout << "Try again: ";
+			name = "";
 		}
 	}
 

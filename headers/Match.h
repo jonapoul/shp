@@ -261,8 +261,7 @@ public:
         cout << std::string(SIZE*1.2, '-') << '\n';
     }
     for (int i = 0; PRINT_FOR_SPREADSHEET && i < m.size(); i++) {
-      double snr = Ephemeris::counts(m[i].p().exposure(), m[i].mag()) / m[i].p().countLimit();
-      printf("%d %.3f %.3f %.3f %.3f\n", m[i].p().id(), m[i].p().julian(), snr, m[i].mid().first, m[i].mid().second);
+      printf("%d\t%f\t%f\t%f\t%f\n", m[i].p().id(), m[i].c().ra(DEG), m[i].c().dec(DEG), m[i].mid().first, m[i].mid().second);
     }
   }
 

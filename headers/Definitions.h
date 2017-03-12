@@ -1,5 +1,5 @@
-#ifndef PARAMETERS_H
-#define PARAMETERS_H
+#ifndef DEFINITIONS_H
+#define DEFINITIONS_H
 
 // lowest signal to noise ratio of an asteroid before a match is not printed as output
 #define SNR_LIMIT 12
@@ -21,7 +21,7 @@
 #define SITE_LONGITUDE 149.070222
 
 // decides whether to print out the final data in a spreadsheet copypastable format at the end
-#define PRINT_FOR_SPREADSHEET false
+#define PRINT_FOR_SPREADSHEET true
 
 // decides whether to print a list of the steps in the date conversion process
 #define PRINT_DATE_BREAKDOWN false
@@ -29,9 +29,6 @@
 #define PLATE_TO_PRINT 14591
 
 // used to specify which kind of angle you're working with when getting/setting RA/DEC
-enum AngleUnit { 
-  DEG, 
-  RAD 
-};
+enum AngleUnit { DEG, RAD };
 
 #endif
