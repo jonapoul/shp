@@ -6,6 +6,8 @@
 #include <sstream>
 #include <fstream>
 #include <iterator>
+#include <ctime>
+#include <chrono>
 #include <algorithm>
 #include <experimental/filesystem>
 #include <boost/algorithm/string.hpp>
@@ -193,10 +195,27 @@ public:
 
 	static void printFiles(std::string& name, 
 	                       bool& filterSNR) {
+		// finding the most recently updated ephemeris
+		if (name == "new") {
+			std::chrono::system_clock::time_point latestTime = std::chrono::system_clock::time_point::min();
+			fs::path latestPath;
+			std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+			for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
+				if (is_regular_file(itr.path())) {
+					std::chrono::system_clock::time_point time = fs::last_write_time( itr.path() );
+					if (time > latestTime) {
+						latestTime = time;
+						latestPath = itr.path();
+					}
+				}
+			}
+			name = latestPath.stem().string();
+			return;
+		}
+
 		std::vector< std::vector<std::string> > folders;
 		std::vector<std::string> folderNames;
 		size_t maxLength = 0;
-
 		for (auto& itr : fs::directory_iterator("./ephemeris")) {
 			if (is_directory(itr.path())) {
 				std::string filename = itr.path().stem().string();
@@ -205,7 +224,7 @@ public:
 				fs::path path = itr.path();				
 				std::vector<std::string> files;
 				for (auto& itr : fs::recursive_directory_iterator(path)) {
-						if (is_regular_file(itr.path())) 
+					if (is_regular_file(itr.path())) 
 						files.push_back(itr.path().stem().string());
 				}
 				// sorting the files in alphabetical order
@@ -238,7 +257,6 @@ public:
 
 		// printing out an ordered list of all files in each folder under ./ephemeris/
 		// yes I know it's a bit messy but it comes out nice
-		int FILES_PER_LINE = 12;
 		for (size_t i = 0; name.length() == 0 && i < folders.size(); i++) {
 			cout << "   " << folderNames[i] << ":\n";
 			for (size_t j = 0; j < folders[i].size(); j += FILES_PER_LINE) {

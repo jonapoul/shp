@@ -10,6 +10,9 @@
 // Millimetre size of the plates, varies by around +-0.5mm, probably not that relevant
 #define PLATE_SIZE 354.5
 
+// Number of files to print on every line when listing all ephemerides
+#define FILES_PER_LINE 12
+
 // conversions between radians and degrees, taken from wolfram alpha
 #define DEG_TO_RAD 0.017453292519943295769236907684886127134428718885417254560971914401710091
 #define RAD_TO_DEG 57.29577951308232087679815481410517033240547246656432154916024386120284714
