@@ -215,8 +215,10 @@ public:
 
 		std::vector< std::vector<std::string> > folders;
 		std::vector<std::string> folderNames;
+		std::vector<std::string> otherFiles;
 		size_t maxLength = 0;
 		for (auto& itr : fs::directory_iterator("./ephemeris")) {
+			// if it finds a folder, go through and add the files to an array
 			if (is_directory(itr.path())) {
 				std::string filename = itr.path().stem().string();
 				
@@ -237,6 +239,9 @@ public:
 				filename[0] = toupper(filename[0]);
 				folderNames.push_back(filename);
 				folders.push_back(files);
+			// if theres a file, add it to an "Other" folder
+			} else if (is_regular_file(itr.path())) {
+				otherFiles.push_back(itr.path().stem().string());
 			}
 		}
 		// sorting the folders into alphabetical order
@@ -253,6 +258,11 @@ public:
 					folders[j+1] = tempVec;
 				}
 			}
+		}
+		if (otherFiles.size() > 0) {
+			folders.push_back(otherFiles);
+			if (folderNames.size() == 0) folderNames.push_back("Asteroids");
+			else 												 folderNames.push_back("Other");
 		}
 
 		// printing out an ordered list of all files in each folder under ./ephemeris/

@@ -132,6 +132,7 @@ public:
         if (is_directory(itr.path()))
           asteroids.push_back(itr.path().stem().string());
       }
+      std::sort(asteroids.begin(), asteroids.end(), std::less<std::string>());
       unsigned longest = 0;
       for (auto a : asteroids) if (a.length() > longest) longest = a.length();
       for (int i = 1; i <= asteroids.size(); i++) {
@@ -139,7 +140,6 @@ public:
         cout << asteroids[i-1] << std::string(spaces+4, ' ');
         if (i % 5 == 0 && i != asteroids.size()) cout << "\n\t";
       } 
-      std::sort(asteroids.begin(), asteroids.end(), std::less<std::string>());
       cout << "\n  Option: "; 
       while (true) {
         std::string buf;

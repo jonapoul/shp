@@ -32,10 +32,14 @@ int main(const int argc,
   Coords::coordsToPlatePosition(asteroidCoords, plateID, xMM, yMM);
   cout << "Fitted x/y plate position:\n" << xMM << ' ' << yMM << '\n';
   
-
               // USE THIS BIT FOR FINDING RA/DEC OF MEASURED COORDINATES
   //cout << "Measured RA/DEC:\n";
   //cout << Coords::mmToCoords(302.535, 194.441, Coords(63.25000, -30.00000)) << '\n';
 }
 
 // TO DO
+  // Take a picture of 1996FG3, starting with 9163 snce the battery died
+  // Retake picture of 2000ev70? sc_reduce doesnt like it
+
+  // intensity centroid, automatic asteroid coords? Sextractor?
+  // put precovery coords/time into neo checker to see if its actually something else
