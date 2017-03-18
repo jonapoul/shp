@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <array>
+#include <iomanip>
 #include "headers/Coords.h"
 #include "headers/Star.h"
 #include "headers/Definitions.h"
@@ -22,15 +23,20 @@ int main(const int argc,
   double rms = Star::rms(stars, false);
   Coords asteroidCoords = Star::xyToCoords(x, y, coeff, tangentPoint);
 
-  //printf("%5s %8s %8s %5s %9s %9s %9s %9s %7s %7s\n", "catid","x","y","scid","xi","xifit","eta","etafit","arcsec","σ");
-  //for (auto& s : stars) s.printStar(rms);
+  printf("%5s %8s %8s %5s %9s %9s %9s %9s %7s %7s\n", 
+         "catid","x","y","scid","xi","xifit","eta","etafit","arcsec","σ");
+  for (auto& s : stars) s.printStar(rms);
+    
   rms = Star::rms(stars, true);
   for (auto& c : asteroidName) c = toupper(c);
   cout << stars.size() << " stars matched for asteroid " << asteroidName << " and plate " << plateID << '\n';
+  cout << std::fixed << std::setprecision(6);
   cout <<  "Fitted RA/DEC coordinates:\n" << asteroidCoords << '\n'; 
   double xMM, yMM;
   Coords::coordsToPlatePosition(asteroidCoords, plateID, xMM, yMM);
-  cout << "Fitted x/y plate position:\n" << xMM << ' ' << yMM << '\n';
+  cout << "Fitted x/y plate position:\n" << xMM << '\t' << yMM << '\n';
+  double x0, y0, xscale, yscale, perp, orientation;
+  Star::coeffsDecomposition(coeff, x0, y0, xscale, yscale, perp, orientation, true);
   
               // USE THIS BIT FOR FINDING RA/DEC OF MEASURED COORDINATES
   //cout << "Measured RA/DEC:\n";
@@ -40,6 +46,7 @@ int main(const int argc,
 // TO DO
   // Take a picture of 1996FG3, starting with 9163 snce the battery died
   // Retake picture of 2000ev70? sc_reduce doesnt like it
-
+  
+  // upload /images/ somewhere FOR FUTURE GENERATIONS or something
   // intensity centroid, automatic asteroid coords? Sextractor?
   // put precovery coords/time into neo checker to see if its actually something else

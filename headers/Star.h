@@ -210,36 +210,24 @@ public:
                         const std::string& path) {
     std::ifstream file(path);
     if (file.is_open()) {
-      while (!file.eof()) {
-        std::string buffer;
-        getline(file, buffer);
+      for (std::string buffer; getline(file, buffer); ) {
         std::stringstream ss(buffer);
-        if (buffer[0] == '#' || buffer.length() == 0)
+        if (buffer[0] == '#' || buffer.length() == 0) {
           continue;
-        if (buffer[0] == '@') {
+        } else if (buffer[0] == '@') {
           char temp;
           double x1, x2, y1, y2;
           ss >> temp >> x1 >> y1 >> x2 >> y2;
-          double tempy1 = y1, tempy2 = y2;
-          double tempx1 = x1, tempx2 = x2;
-          if (tempy1 > tempy2) {
-            y1 = tempy2;
-            y2 = tempy1;
-          }
-          if (tempx1 > tempx2) {
-            x1 = tempx2;
-            x1 = tempx1;
-          }
-          x = x1 + abs(x1 - x2)/2.0;
-          y = y1 + abs(y1 - y2)/2.0;
-          continue;
+          x = (x1 + x2) / 2.0;
+          y = (y1 + y2) / 2.0;
+        } else {
+          unsigned catalogID, supercosmosID;
+          double xPix, yPix, ra2k, dec2k;
+          ss >> catalogID >> xPix >> yPix >> supercosmosID >> ra2k >> dec2k;
+          Coords j2000 = {ra2k, dec2k};
+          Coords b1950 = Coords::convertEpoch(2000, 1950, j2000);
+          stars.push_back( {catalogID, xPix, yPix, supercosmosID, j2000, b1950} );
         }
-        unsigned catalogID, supercosmosID;
-        double xPix, yPix, ra2k, dec2k;
-        ss >> catalogID >> xPix >> yPix >> supercosmosID >> ra2k >> dec2k;
-        Coords j2000 = {ra2k, dec2k};
-        Coords b1950 = Coords::convertEpoch(2000, 1950, j2000);
-        stars.push_back( {catalogID, xPix, yPix, supercosmosID, j2000, b1950} );
       }
       file.close();
     } else {
@@ -512,6 +500,112 @@ public:
     Coords asteroidCoords;
     Coords::inverseGnomonic(xi, eta, tangentPoint, asteroidCoords);
     return asteroidCoords;
+  }
+
+  /*
+  **  Decompose an [x,y] linear fit into its constituent parameters:
+  **  zero points, scales, nonperpendicularity and orientation.
+  **  Given:
+  **     coeffs    double[6]     transformation coefficients (see note)
+  **  Returned:
+  **     *xz       double        x zero point
+  **     *yz       double        y zero point
+  **     *xs       double        x scale
+  **     *ys       double        y scale
+  **     *perp     double        nonperpendicularity (radians)
+  **     *orient   double        orientation (radians)
+  **  The model relates two sets of [x,y] coordinates as follows.
+  **  Naming the elements of coeffs:
+  **     coeffs[0] = a
+  **     coeffs[1] = b
+  **     coeffs[2] = c
+  **     coeffs[3] = d
+  **     coeffs[4] = e
+  **     coeffs[5] = f
+  **  The model transforms coordinates [x1,y1] into coordinates
+  **  [x2,y2] as follows:
+  **     x2 = a + b*x1 + c*y1
+  **     y2 = d + e*x1 + f*y1
+  **  The transformation can be decomposed into four steps:
+  **     1)  Zero points:
+  **             x' = xz + x1
+  **             y' = yz + y1
+  **     2)  Scales:
+  **             x'' = xs*x'
+  **             y'' = ys*y'
+  **     3)  Nonperpendicularity:
+  **             x''' = cos(perp/2)*x'' + sin(perp/2)*y''
+  **             y''' = sin(perp/2)*x'' + cos(perp/2)*y''
+  **     4)  Orientation:
+  **             x2 = cos(orient)*x''' + sin(orient)*y'''
+  **             y2 =-sin(orient)*y''' + cos(orient)*y'''
+  **
+  **  Copyright P.T.Wallace.  All rights reserved.
+  **  Last revision:   22 September 1995
+  */
+  static void coeffsDecomposition(const std::array<double,6>& coeffs, 
+                                  double& x0, 
+                                  double& y0, 
+                                  double& xscale, 
+                                  double& yscale, 
+                                  double& nonperpendicularity, 
+                                  double& orientation,
+                                  const bool verbose = false) {
+  /* Copy the six coefficients */
+    double a = coeffs[0];
+    double b = coeffs[1];
+    double c = coeffs[2];
+    double d = coeffs[3];
+    double e = coeffs[4];
+    double f = coeffs[5];
+
+  /* Scales */
+    double rb2e2 = sqrt(b*b + e*e);
+    double rc2f2 = sqrt(c*c + f*f);
+    if ((b*f - c*e ) >= 0.0)
+      xscale = rb2e2;
+    else {
+      b = -b;
+      c = -c;
+      xscale = -rb2e2;
+    }
+    yscale = rc2f2;
+
+  /* Non-perpendicularity */
+    nonperpendicularity = ((c != 0.0 || f != 0.0) ? atan2(c,f) : 0.0) +
+                          ((e != 0.0 || b != 0.0) ? atan2(e,b) : 0.0);
+
+  /* Orientation */
+    double ws = (c*rb2e2) - (e*rc2f2);
+    double wc = (b*rc2f2) + (f*rb2e2);
+    orientation = (ws != 0.0 || wc != 0.0) ? atan2 (ws,wc) : 0.0;
+
+  /* Zero corrections */
+    double hp = nonperpendicularity / 2.0;
+    double shp = sin(hp);
+    double chp = cos(hp);
+    double sor = sin(orientation);
+    double cor = cos(orientation);
+    double det = xscale*yscale*(chp + shp)*(chp - shp);
+    if (fabs(det) > 0.0) {
+      x0 = yscale * (a*((chp*cor) - (shp*sor)) - d*((chp*sor) + (shp*cor)))/det;
+      y0 = xscale * (a*((chp*sor) - (shp*cor)) + d*((chp*cor) + (shp*sor)))/det;
+    }
+    else {
+      x0 = 0.0;
+      y0 = 0.0;
+    }
+    if (verbose) {
+      printf("Coefficients:\n");
+      for (auto c : coeffs) printf("%.4e ", c);
+      printf("\n   Coefficient Decomposition:\n");
+      printf("\t                 x0 = %.3f\n", x0);
+      printf("\t                 y0 = %.3f\n", y0);
+      printf("\t             xScale = %.3f arcsecs/pixel\n", xscale*648000/M_PI);
+      printf("\t             yScale = %.3f arcsecs/pixel\n", yscale*648000/M_PI);
+      printf("\tnonperpendicularity = %.3f\n", nonperpendicularity);
+      printf("\t        orientation = %.3f\n", orientation);
+    }
   }
 };
 

@@ -24,7 +24,7 @@
 #define SITE_LONGITUDE 149.070222
 
 // decides whether to print out the final data in a spreadsheet copypastable format at the end
-#define PRINT_FOR_SPREADSHEET false
+#define PRINT_FOR_SPREADSHEET true
 
 // decides whether to print a list of the steps in the date conversion process
 #define PRINT_DATE_BREAKDOWN false

@@ -96,11 +96,9 @@ public:
 		if (ephemerisFile.is_open()) {
 			bool canReadEntries = false;
 			bool isSurfBrt = false;
-			while (!ephemerisFile.eof()) {
-				std::string buffer;
-				getline(ephemerisFile, buffer);
-				// if the column headers include "S-brt", pass that flag to the parsing function
-				// so that it knows to ignore the surface brightness value when reading in
+			for (std::string buffer; getline(ephemerisFile, buffer); ) {
+				/* if the column headers include "S-brt", pass that flag to the parsing function
+				so that it knows to ignore the surface brightness value when reading in */
 				if (!canReadEntries && buffer.find("S-brt") != std::string::npos)
 					isSurfBrt = true;
 				// End Of Entries, back out of the loop since all data is done
@@ -108,9 +106,8 @@ public:
 					break;
 				if (canReadEntries) {
 					Ephemeris e;
-					if (e.parseEphemerisString(buffer, isSurfBrt)) {
+					if (e.parseEphemerisString(buffer, isSurfBrt))
 						eph.push_back(e);
-					}
 				}
 				// Start Of Entries, enable parsing of all lines after this one
 				if (buffer == "$$SOE") 
@@ -265,8 +262,8 @@ public:
 			else 												 folderNames.push_back("Other");
 		}
 
-		// printing out an ordered list of all files in each folder under ./ephemeris/
-		// yes I know it's a bit messy but it comes out nice
+		/* printing out an ordered list of all files in each folder under ./ephemeris/
+		   yes I know it's a bit messy but it comes out nice */
 		for (size_t i = 0; name.length() == 0 && i < folders.size(); i++) {
 			cout << "   " << folderNames[i] << ":\n";
 			for (size_t j = 0; j < folders[i].size(); j += FILES_PER_LINE) {
@@ -325,7 +322,7 @@ public:
 			}
 			// if no matches, ask for another and try again
 			if (possibilities.size() > 0) {
-				cout << "Did you mean:\n\t";
+				cout << "   Did you mean:\n\t";
 				size_t longest = 0;
 				for (int i = 1; i <= possibilities.size(); i++) {
 					cout << possibilities[i-1] << std::string(maxLength-possibilities[i-1].length()+1, ' ');

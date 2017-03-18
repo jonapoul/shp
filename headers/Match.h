@@ -111,12 +111,12 @@ public:
       ss.str("");
 
       // Object's RA/DEC coordinates in degrees
-      sprintf(buffer, "\tObject Coords  = (%.5f, %.5f)°", m[i].c().ra(DEG), m[i].c().dec(DEG));
+      sprintf(buffer, "\tObject Coords  = (%.7f, %.7f)°", m[i].c().ra(DEG), m[i].c().dec(DEG));
       ss << buffer;
       length = SIZE-ss.str().length();
       ss << std::string(length+1, ' ') << "| ";
       if (canPrint) {
-        sprintf(buffer, "\tObject Coords  = (%.5f, %.5f)°", m[i+1].c().ra(DEG), m[i+1].c().dec(DEG));
+        sprintf(buffer, "\tObject Coords  = (%.7f, %.7f)°", m[i+1].c().ra(DEG), m[i+1].c().dec(DEG));
         ss << buffer;
       }
       cout << ss.str() << '\n';
@@ -146,7 +146,8 @@ public:
       cout << ss.str() << '\n';
       ss.str("");
 
-      // Length of the object's exposure trail on the plate in millimetres, plus the directional vector
+      /* Length of the object's exposure trail on the plate in millimetres,
+        plus the directional vector */
       char buffer2[50];
       double dx = m[i].end().first  - m[i].start().first;
       double dy = m[i].end().second - m[i].start().second;
@@ -261,7 +262,7 @@ public:
         cout << std::string(SIZE*1.2, '-') << '\n';
     }
     for (int i = 0; PRINT_FOR_SPREADSHEET && i < m.size(); i++) {
-      printf("%d\t%f\t%f\t%f\t%f\n", m[i].p().id(), m[i].c().ra(DEG), m[i].c().dec(DEG), m[i].mid().first, m[i].mid().second);
+      printf("%d\t%.7f\t%.7f\t%f\t%f\n", m[i].p().id(), m[i].c().ra(DEG), m[i].c().dec(DEG), m[i].mid().first, m[i].mid().second);
     }
   }
 
