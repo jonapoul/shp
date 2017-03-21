@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include "headers/Coords.h"
 #include "headers/Ephemeris.h"
 #include "headers/Plate.h"
 #include "headers/Match.h"
@@ -41,7 +42,7 @@ int main(int argc, char* argv[]) {
 	std::vector<Match> matches;
 
 	/* used to determine the closest angular distance between plate centre and 
-	   object coordinates only used in case there are no matches
+	   object coordinates, only used in case there are no matches
 	   eg mercury/venus/makemake */
 	double closest = 180.0;
 
@@ -50,7 +51,7 @@ int main(int argc, char* argv[]) {
 		Plate p = plates[pl];
 		double plateDate = p.julian();
 
-		/* i = index of the ephemeris record immediately before the plate date */
+		// i = index of the ephemeris record immediately before the plate date
 		int i = int( (plateDate - firstEphDate) / step );
 		// this happens if the first ephemeris record is after the first plate
 		if (i < 0) continue;
@@ -59,10 +60,7 @@ int main(int argc, char* argv[]) {
 		double beforeDate = eph[i].julian();
 		Coords after 	    = eph[i+1].coords();
 		double afterDate  = eph[i+1].julian();
-
-		// approximate linear interpolation
-		Coords interpedCoords = Coords::linInterp(before, beforeDate, 
-		                                          after, afterDate, plateDate);
+		Coords interpedCoords = Coords::linInterp(before, beforeDate, after, afterDate, plateDate);
 		/* calculating the angular distance between the interpolated coordinates 
 		   and the plate centre */
 		Coords plateCoords	   = p.coords();
@@ -104,7 +102,6 @@ int main(int argc, char* argv[]) {
 					                                  eph[i+1].mag(), afterDate, plateDate);
 					double counts = Ephemeris::counts(p.exposure(), mag);
 					double snr = counts / p.countLimit();
-					// this is a totally empirical limit, can be changed if necessary
 					if (filterSNR && snr < SNR_LIMIT) {
 						tooFaint.push_back(p.id());
 						continue;

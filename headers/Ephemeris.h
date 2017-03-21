@@ -77,22 +77,29 @@ public:
 	*/
 	static void readEphemerisFile(std::vector<Ephemeris>& eph, 
 	                              const std::string& filename) {
-		fs::path path;
-		bool fileDoesntExist = true;
-		for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
-			fs::path dir = itr.path();
-			fs::path file = dir.string() +  '/' + filename + ".txt";
-			if (is_directory(dir) && fs::exists(file)) {
-				path = file;
-				fileDoesntExist = false;
-				break;
-			}
+		fs::path filepath;
+		bool fileExists = false;
+		for (auto& itr : fs::directory_iterator("./ephemeris")) {
+      fs::path current = itr.path();
+      if (is_directory(current)) {
+        filepath = current / fs::path(filename + ".txt");
+        if (fs::exists(filepath)) {
+          fileExists = true;
+          break;
+        }
+      } else if (is_regular_file(current)) {
+        if (current.stem().string() == filename) {
+          filepath = current;
+          fileExists = true;
+          break;
+        }
+      }
 		}
-		if (fileDoesntExist) {
+		if (!fileExists) {
 			cout << filename << ".txt couldn't be found in /ephemeris/, exiting...\n";
 			exit(1);
 		}
-		std::ifstream ephemerisFile(path);
+		std::ifstream ephemerisFile(filepath);
 		if (ephemerisFile.is_open()) {
 			bool canReadEntries = false;
 			bool isSurfBrt = false;
@@ -176,14 +183,22 @@ public:
 			if (std::string(argv[i]) == "-snr")
 				filterSNR = false; 
 		}
-
-		std::string param = std::string(argv[1]);
-		for (auto& itr : fs::recursive_directory_iterator("./ephemeris")) {
-			fs::path file = itr.path().string() +  '/' + param + ".txt";
-			if (fs::exists(file)) {
-				name = param;
-				return;
-			}
+    // checking whether the supplied filename exists
+    std::string param = std::string(argv[1]);
+		for (auto& itr : fs::directory_iterator("./ephemeris")) {
+      fs::path current = itr.path();
+      if (is_directory(current)) {
+        fs::path filepath = current / fs::path(param + ".txt");
+        if (fs::exists(filepath)) {
+          name = param;
+          return;
+        }
+      } else if (is_regular_file(current)) {
+        if (current.stem().string() == param) {
+          name = param;
+          return;
+        }
+      }
 		}
 		// if the argument doesnt exist as a filename, print out a list and ask which the user wants
 		name = std::string(argv[1]);
@@ -230,7 +245,8 @@ public:
 				std::sort(files.begin(), files.end(), std::less<std::string>());
 
 				// finding the longest filename length
-				for (auto f : files) maxLength = (f.length() > maxLength) ? f.length() : maxLength;
+				for (auto f : files) 
+          maxLength = (f.length() > maxLength) ? f.length() : maxLength;
 
 				// Switch the first letter to a capital to it reads a bit better
 				filename[0] = toupper(filename[0]);

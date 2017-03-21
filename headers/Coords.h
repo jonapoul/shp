@@ -82,7 +82,8 @@ public:
     }
   }
 
-  friend std::ostream& operator<<(std::ostream& stream, const Coords& c) {
+  friend std::ostream& operator<<(std::ostream& stream, 
+                                  const Coords& c) {
     stream << c.toString();
     return stream;
   }

@@ -10,8 +10,6 @@
 #include "Coords.h"
 #include "Definitions.h"
 using std::cout;
-class Plate;
-class Coords;
 
 class Match {
 private:

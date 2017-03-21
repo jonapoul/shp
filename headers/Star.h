@@ -336,7 +336,7 @@ public:
     Outputs rms of xi and eta differences, both in units of arcsecs
   */
   static double rms(const std::vector<Star>& stars, 
-                    const bool shouldPrint = true) {
+                    const bool verbose = false) {
     double xiRMS = 0.0;
     double etaRMS = 0.0;
     for (const auto& s : stars) {
@@ -346,7 +346,7 @@ public:
     xiRMS  = sqrt(xiRMS  / stars.size()) * RAD_TO_DEG * 3600;
     etaRMS = sqrt(etaRMS / stars.size()) * RAD_TO_DEG * 3600;
     double rms = sqrt(xiRMS*xiRMS + etaRMS*etaRMS);
-    if (shouldPrint)
+    if (verbose)
       cout << "σξ = " << xiRMS << " ση = " << etaRMS << " σ = " << rms << " arcsecs\n";
     return rms;
   }
@@ -435,20 +435,16 @@ public:
       exit(1);
     }
 
-    // actually match them up if the two objects are within 1 arcsec of each other
+    // match them up if the two objects are within 1 arcsec of each other
     double threshold = 1.0;  // in arcseconds
     for (const auto& c : catalog) {
       Star s;
-      double closest = 100; // also arcsecs
       for (const auto& sc : supercosmos) {
-        //cout << sc.xi << ' ' << sc.eta << ' ' << c.xi << ' ' << c.eta << '\n';
         double dxi = (sc.xi - c.xi) * RAD_TO_DEG * 3600;
         double deta = (sc.eta - c.eta) * RAD_TO_DEG * 3600;
         double distance = sqrt(dxi*dxi + deta*deta);
-        if (distance < threshold && distance < closest){
+        if (distance < threshold)
           s = Star(c.id, c.x, c.y, sc.id, sc.j2000, sc.b1950, sc.xi, sc.eta);
-          closest = distance;
-        }
       }
       bool hasAlreadybeenAdded = false;
       for (const auto& star : stars) {
@@ -457,7 +453,7 @@ public:
           break;
         }
       }
-      if (!hasAlreadybeenAdded && closest < 1)
+      if (!hasAlreadybeenAdded)
         stars.push_back(s);
     }
     // sort in order of catalog id number for ease of reading
@@ -500,6 +496,18 @@ public:
     Coords asteroidCoords;
     Coords::inverseGnomonic(xi, eta, tangentPoint, asteroidCoords);
     return asteroidCoords;
+  }
+
+  /*
+    Prints all info about the Star array members, followed by the RMS of the fit    
+  */
+  static void printAllStars(const std::vector<Star>& stars) {
+    double rms = Star::rms(stars, false);
+    printf("%5s %8s %8s %5s %9s %9s %9s %9s %7s %7s\n", 
+           "catid","x","y","scid","xi","xifit","eta","etafit","arcsec","σ");
+    for (auto& s : stars) 
+      s.printStar(rms);
+    rms = Star::rms(stars, true);
   }
 
   /*

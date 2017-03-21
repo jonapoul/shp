@@ -73,8 +73,8 @@ public:
 		for (auto& c : lst)
 			if (!isdigit(c)) c = '0';
 
-		bool isDebug = (PRINT_DATE_BREAKDOWN && id_ == PLATE_TO_PRINT);
-		julian_ = convertDate(greg_, lst, isDebug);
+		bool verbose = (PRINT_DATE_BREAKDOWN && id_ == PLATE_TO_PRINT);
+		julian_ = convertDate(greg_, lst, verbose);
 
 		try { exp_ = stod(buffer.substr(52,4)) * 6.0; }
 		catch (...) { return false; }
@@ -111,7 +111,7 @@ public:
 	*/
 	static double convertDate(const std::string& gregorianDate, 
 	                          const std::string& lst,
-	                          const bool isDebug = false) {
+	                          const bool verbose = false) {
 		int year = stoi(gregorianDate.substr(0, 2));
 		if (year < 100)
 			year += (year < 17) ? 2000 : 1900;
@@ -126,7 +126,7 @@ public:
 		double frac = ut / 24.0;
 		julian += frac;
 
-		if (isDebug) {		// date conversion debugging
+		if (verbose) {		// date conversion debugging
 			printf("Date = %s\n", gregorianDate.c_str());
 			printf("LST  = %s\n", lst.c_str());
 			printf("JD   = %.5f\n", julian-frac);
@@ -212,8 +212,8 @@ public:
 	*/
 	static double GSTtoUT(const double gst, 
 	                      const double JD) {
-		double S = JD - 2451545;
-		double T = S / 36525.0;
+		double S  = JD - 2451545;
+		double T  = S / 36525.0;
 		double T0 = 6.697374558 + (2400.051336 * T) + (0.000025862 * T * T);
 		while (T0 > 24) T0 -= 24;
 		while (T0 < 0)  T0 += 24;
@@ -311,7 +311,7 @@ public:
 			expLim = 90;
 			magLim = 19.5;
 		} else {
-			expLim = 100;		// these default values were pulled out of the ether
+			expLim = 100;		// default values, pulled out of the ether
 			magLim = 22;
 		}
 		expLim *= 60;	// convert minutes to seconds

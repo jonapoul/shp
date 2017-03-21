@@ -20,14 +20,10 @@ int main(const int argc,
   Coords tangentPoint = Star::findProjectionCoordinates(stars);
   Star::matchStars(stars, filePath, plateID, asteroidName, tangentPoint);
   std::array<double,6> coeff = Star::solveLinearEquation(stars);
-  double rms = Star::rms(stars, false);
   Coords asteroidCoords = Star::xyToCoords(x, y, coeff, tangentPoint);
 
-  printf("%5s %8s %8s %5s %9s %9s %9s %9s %7s %7s\n", 
-         "catid","x","y","scid","xi","xifit","eta","etafit","arcsec","σ");
-  for (auto& s : stars) s.printStar(rms);
+  Star::printAllStars(stars);
     
-  rms = Star::rms(stars, true);
   for (auto& c : asteroidName) c = toupper(c);
   cout << stars.size() << " stars matched for asteroid " << asteroidName << " and plate " << plateID << '\n';
   cout << std::fixed << std::setprecision(6);
