@@ -428,12 +428,14 @@ public:
       auto supercosmossort = [](SuperCosmosStar& a,SuperCosmosStar& b) { return a.magnitude < b.magnitude; };
       std::sort(supercosmos.begin(), supercosmos.end(), supercosmossort);
       // remove all but the brightest objects
-      for (int i = supercosmos.size()-1; i >= 2000; i--)
+      size_t numStars = supercosmos.size();
+      for (int i = numStars; i >= numStars/2; i--)
         supercosmos.erase(supercosmos.begin()+i);
     } else {
       cout << "Couldn't open " << scfilename << "\n";
       exit(1);
     }
+
 
     // match them up if the two objects are within 1 arcsec of each other
     double threshold = 1.0;  // in arcseconds
@@ -444,7 +446,7 @@ public:
         double deta = (sc.eta - c.eta) * RAD_TO_DEG * 3600;
         double distance = sqrt(dxi*dxi + deta*deta);
         if (distance < threshold)
-          s = Star(c.id, c.x, c.y, sc.id, sc.j2000, sc.b1950, sc.xi, sc.eta);
+          s = Star(c.id, c.x, c.y, sc.id, sc.j2000, sc.b1950, (sc.xi+c.xi)/2.0, (sc.eta+c.eta)/2.0);
       }
       bool hasAlreadybeenAdded = false;
       for (const auto& star : stars) {
@@ -453,8 +455,9 @@ public:
           break;
         }
       }
-      if (!hasAlreadybeenAdded)
+      if (!hasAlreadybeenAdded && s.catid_ != 0) {
         stars.push_back(s);
+      }
     }
     // sort in order of catalog id number for ease of reading
     auto starsort = [](Star& a,Star& b) { return a.catid_ < b.catid_; };
